@@ -1,0 +1,60 @@
+
+# Transformation will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "''"
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'CUST_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(state, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(processed_date, 'yyyy-MM-dd')"
+
+  - id: "transformation_id_2"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+
+  
+  # Unique name for the transformation 
+  - id: "transformation_id_3"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "'NA'"
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'TR_ACCT_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(TR_REF_NBR, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(TR_NET_DUE_DATE, 'yyyy-MM-dd')"
+    filters:
+      - condition: "Entity != '1606'"
+      - condition: "TR_REC_ID in ('AC', 'AI', 'AB', 'AT')"
+      - condition: "not(TR_ACT_DESC like '%TRF%')"
+
+
+

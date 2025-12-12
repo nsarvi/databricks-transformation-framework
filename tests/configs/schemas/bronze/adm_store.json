@@ -1,0 +1,17 @@
+{
+  "type": "struct",
+  "fields": [
+    {
+      "name": "store_id",
+      "type": "string",
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "store_name",
+      "type": "string",
+      "nullable": true,
+      "metadata": {}
+    }
+  ]
+}

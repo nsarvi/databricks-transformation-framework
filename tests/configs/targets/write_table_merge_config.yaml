@@ -1,0 +1,98 @@
+# Configurations for the source table(s)
+sources:
+  - source_id: "source_1"
+    table: "nsarvi.adm.customer_mapics"
+    transformation_id: "transformation_id_1"
+    read_type: "table"
+
+  - source_id: "source_2"
+    table: "nsarvi.adm.sales_mapics"
+    transformation_id: "transformation_id_2"
+    read_type: "table"
+
+# Transformations to be applied on the target tables      
+transformations:
+  - id: "transformation_id_1"
+    additional_columns:          
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "source_system"
+        type: "string"
+        value: "'MAPICS'"
+    column_rename:
+      - column: "customer_email_mapics"
+        target_column: "customer_email"
+
+  - id: "transformation_id_2"
+    additional_columns:          
+      - name: "source_system"
+        type: "string"
+        value: "'MDM'"
+    column_rename:
+      - column: "customer_id_mapics"
+        target_column: "customer_id"
+
+combine:
+  - combine_id: "combine_id_1"
+    joins:
+      join_id: "join_id_1"
+      source_ids: 
+        - source_id: "source_1"
+          alias: "c"
+          join_order: 1
+        - source_id: "source_2"
+          alias: "s"
+          join_order: 2
+      join_type: "inner"
+      join_condition: ["customer_id"]
+      select_columns:
+        c: ["customer_id", "customer_name", "customer_address", "customer_phone_mapics", "customer_email"]
+        s: ["customer_id","transaction_id", "product_id_mapics", "store_id_mapics", "quantity", "price"]
+      post_join_filters:
+        - condition: "s.price < 50"
+      alias: "customer_sales"
+
+# Configurations for the target table(s)
+targets:
+  - table_id: "target_customer_sales"
+    table: "nsarvi.adm.customer_sales"
+    write_type: "merge"
+    write_mode: "append"
+    partition_by: ["store_id"]  # Clustering and partitioning cannot both be specified
+    options:
+      mergeSchema: "true"
+      overwriteSchema: "true"
+    schema_file: "tests/configs/schemas/silver/adm_customer_sales.json"
+    table_properties:
+      delta.autoOptimize.optimizeWrite: "true"
+      delta.autoOptimize.autoCompact: "true"
+    merge_source_type: "combine"  # Specify the type of the source (sources or combine )
+    merge_source_id: "combine_id_1"  # Specify the source for the merge (source section or join)
+    merge_source_alias: "source"  # Alias for the source DataFrame
+    target_alias: "target"  # Alias for the target DataFrame
+    merge_condition: "target.customer_id = source.customer_id"
+    merge_actions:
+      when_matched:
+        update:
+          - "customer_name = source.customer_name"
+          - "customer_address = source.customer_address"
+          - "customer_phone_mapics = source.customer_phone_mapics"
+          - "customer_email = source.customer_email"
+          - "transaction_id = source.transaction_id"
+          - "product_id_mapics = source.product_id_mapics"
+          - "store_id_mapics = source.store_id_mapics"
+          - "quantity = source.quantity"
+          - "price = source.price"
+      when_not_matched:
+        insert:
+          - "customer_id"
+          - "customer_name"
+          - "customer_address"
+          - "customer_phone_mapics"
+          - "customer_email"
+          - "transaction_id"
+          - "product_id_mapics"
+          - "store_id_mapics"
+          - "quantity"
+          - "price"

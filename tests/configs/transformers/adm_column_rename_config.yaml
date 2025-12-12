@@ -1,0 +1,10 @@
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Column expressions to be applied
+    column_rename:
+      - column: "sales_id_test"
+        target_column: "sales_id"
+      - column: "store_id_test"
+        target_column: "store_id"
+  

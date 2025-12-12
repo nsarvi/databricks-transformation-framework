@@ -1,0 +1,47 @@
+# Transformatin will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'CUST_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(state, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(processed_date, 'yyyy-MM-dd')"
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "total_price"
+        expression: "quantity * price"
+      - column: "discounted_price"
+        expression: "cast(quantity * price * 0.9 as double)"
+      - column: "price_category"
+        expression: "CASE WHEN price > 30 THEN 'High' ELSE 'Low' END"
+    # Column concatenation expressions to be applied
+    column_concatenations:
+      - target_column: "region_state"
+        columns:
+          - expression: "region"
+          - expression: "state"
+        delimiter: " | "
+      - target_column: "region_state_with_trim"
+        columns:
+          - expression: "trim(region)"
+          - expression: "trim(state)"
+        delimiter: " - "
+    # Distinct columns to be applied
+    distinct_columns:
+      - column: "sales_id"
+      - column: "store_id"
+      - column: "product_id"
+
+
+

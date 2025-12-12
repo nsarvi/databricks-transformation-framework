@@ -1,0 +1,25 @@
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Column expressions to be applied
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "total_price"
+        expression: "quantity * price"
+      - column: "discounted_price"
+        expression: "quantity * price * 0.9"
+      - column: "price_category"
+        expression: "CASE WHEN price > 30 THEN 'High' ELSE 'Low' END"
+    # Column concatenation expressions to be applied
+    column_concatenations:
+      - target_column: "region_state"
+        columns:
+          - expression: "region"
+          - expression: "state"
+        delimiter: " | "
+      - target_column: "region_state_with_trim"
+        columns:
+          - expression: "trim(region)"
+          - expression: "trim(state)"
+        delimiter: " - "

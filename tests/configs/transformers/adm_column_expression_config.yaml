@@ -1,0 +1,24 @@
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "''"
+      - name: "state_with_na"
+        type: "string"
+        value: "'NA'"
+    # Column expressions to be applied
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "state_with_na"   # Existing column to be replaced with new expression
+        expression: "concat('state_', state)"
+      - column: "total_price"
+        expression: "quantity * price"
+      - column: "discounted_price"
+        expression: "cast(quantity * price * 0.9 as double)"
+      - column: "price_category"
+        expression: "CASE WHEN price > 30 THEN 'High' ELSE 'Low' END"
+

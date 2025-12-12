@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adm_ingestion_framework"
+dynamic = ["version"]
+description = "wheel file based on adm_ingestion_framework/src"
+authors = [
+    { name = "niranjan.sarvi", email = "niranjan.sarvi@databricks.com" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "setuptools"
+]
+
+[tool.setuptools]
+packages = { find = { where = ["src"] } }  # <--- Defines the source directory
+
+[tool.setuptools.package-dir]
+"" = "src"  # <--- Maps the root package to `src/`
+
+[tool.setuptools.dynamic]
+version = { attr = "adm.__version__" }
+
+[project.scripts]
+main = "adm.main:main"

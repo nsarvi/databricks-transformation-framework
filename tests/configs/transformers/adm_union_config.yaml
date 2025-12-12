@@ -1,0 +1,91 @@
+# Configurations for the source table(s)
+sources:
+  - source_id: "source_1"
+    table: "nsarvi.adm.adm_store_1"
+    transformation_id: "transformation_id_1"
+    read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
+
+  - source_id: "source_2"
+    table: "nsarvi.adm.adm_store_2"
+    transformation_id: "transformation_id_2"
+    read_type: "stream"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
+    stream_options:   # provide the same exact options as in the spark.readStream
+      maxFilesPerTrigger: 1
+      trigger: 
+        seconds: 10
+
+  - source_id: "source_3"
+    table: "nsarvi.adm.adm_store_3"
+    transformation_id: "transformation_id_3"
+    read_type: "cdf"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
+    cdf_options:  # provide the same exact options as in the spark.readStream
+      startingVersion: 1
+      endingVersion: 5
+
+# Transformatin will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "''"
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'CUST_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(state, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(processed_date, 'yyyy-MM-dd')"
+
+  - id: "transformation_id_2"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+
+  
+  # Unique name for the transformation 
+  - id: "transformation_id_3"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "'NA'"
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'TR_ACCT_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(TR_REF_NBR, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(TR_NET_DUE_DATE, 'yyyy-MM-dd')"
+    filters:
+      - condition: "Entity != '1606'"
+      - condition: "TR_REC_ID in ('AC', 'AI', 'AB', 'AT')"
+      - condition: "not(TR_ACT_DESC like '%TRF%')"
+
+combine:
+  - combine_id: "combine_id_1"
+    unions:
+      - union_id: "union_id_1"
+        source_ids: ["source_1", "source_2"]
+        distinct: true  # Remove duplicates
+
+
+
+

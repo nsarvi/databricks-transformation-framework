@@ -1,0 +1,16 @@
+
+# Transformation will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "''"
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+    distinct_columns:
+      - column: "sales_id"
+      - column: "product_id"

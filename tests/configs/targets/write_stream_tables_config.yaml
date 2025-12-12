@@ -1,0 +1,117 @@
+# Configurations for the source table(s)
+sources:
+  - table_id: "source_1"
+    table: "nsarvi.adm.adm_store_1"
+    transformation_id: "transformation_id_1"
+    read_type: "table"
+
+  - table_id: "source_2"
+    table: "nsarvi.adm.adm_store_2"
+    transformation_id: "transformation_id_2"
+    read_type: "stream"
+    stream_options:
+      maxFilesPerTrigger: 1
+      trigger:
+        seconds: 10
+
+  - table_id: "source_3"
+    table: "nsarvi.adm.adm_store_3"
+    transformation_id: "transformation_id_3"
+    read_type: "cdf"
+    cdf_options:
+      startingVersion: 1
+      endingVersion: 5
+
+# Transformation will be applied on the target tables
+transformations:
+  - id: "transformation_id_1"
+    additional_columns:
+      - name: "region"
+        type: "string"
+        value: "''"
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'CUST_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(state, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(processed_date, 'yyyy-MM-dd')"
+
+  - id: "transformation_id_2"
+    additional_columns:
+      - name: "state"
+        type: "string"
+        value: "'NA'"
+
+  - id: "transformation_id_3"
+    additional_columns:
+      - name: "region"
+        type: "string"
+        value: "'NA'"
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "Customer_Number"
+        type: "string"
+        value: "'TR_ACCT_NBR'"
+      - name: "Payment_ID"
+        type: "string"
+        value: "regexp_replace(TR_REF_NBR, ' ', '')"
+      - name: "Invoice_Due_Date"
+        type: "timestamp"
+        value: "to_date(TR_NET_DUE_DATE, 'yyyy-MM-dd')"
+    filters:
+      - condition: "Entity != '1606'"
+      - condition: "TR_REC_ID in ('AC', 'AI', 'AB', 'AT')"
+      - condition: "not(TR_ACT_DESC like '%TRF%')"
+
+combine:
+  - combine_id: "combine_id_1"
+    unions:
+      - table_ids: ["source_1", "source_2"]
+        distinct: true
+    joins:
+      - table_id: "source_3"
+        on: ["store_id"]
+        type: "left"
+
+# Configurations for the target table(s)
+targets:
+  - table_id: "target_customer"
+    table: "nsarvi.adm.adm_target_customer"
+    write_type: "table"
+    write_mode: "overwrite"
+    partition_by: ["region", "state"]
+    cluster_by: ["Customer_Number"]
+    options:
+      compression: "snappy"
+      mergeSchema: "true"  # Option to merge schema
+      overwriteSchema: "true"  # Option to overwrite schema
+    schema_file: "tests/configs/schemas/silver/adm_customer.json"
+    table_properties:
+      delta.autoOptimize.optimizeWrite: "true"
+      delta.autoOptimize.autoCompact: "true"
+
+  - table_id: "target_sales"
+    table: "nsarvi.adm.adm_target_sales"
+    write_type: "stream"
+    write_mode: "append"
+    partition_by: ["processed_date"]
+    options:
+      compression: "gzip"
+      path: "/path/to/output"
+      checkpointLocation: "/path/to/checkpoint"
+      outputMode: "append"
+      trigger: "processingTime"
+    schema_file: "tests/configs/schemas/silver/adm_sales.json"
+    table_properties:
+      delta.autoOptimize.optimizeWrite: "true"
+      delta.autoOptimize.autoCompact: "true"
