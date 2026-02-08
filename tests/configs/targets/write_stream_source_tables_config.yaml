@@ -1,0 +1,13 @@
+
+targets:
+  - table_id: "source_customer_stream_1"
+    table: "sandbox.integration_framework.customer_mapics_stream_1"
+    write_type: "table"
+    write_mode: "append"
+    partition_by: ["customer_region"] # Clustering and partitioning cannot both be specified
+    options:
+      mergeSchema: "true"  # Option to merge schema
+      overwriteSchema: "true"  # Option to overwrite schema
+    table_properties:
+      delta.autoOptimize.optimizeWrite: "true"
+      delta.autoOptimize.autoCompact: "true"

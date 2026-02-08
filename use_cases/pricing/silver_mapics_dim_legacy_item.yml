@@ -1,0 +1,224 @@
+sources:
+  - source_id: mapics_itemasa
+    table: bronze_ingestion_dev01.mapics_mapics_amflib.itemasa
+    read_type: table
+    transformation_id: mapics_itemasa_transformation
+
+  - source_id: mapics_lblall
+    table: bronze_ingestion_dev01.mapics_mapics_amflib.LBLALL # No LBLALL table found
+    read_type: table
+    transformation_id: mapics_lblall_transformation
+
+  - source_id: sapitmxref_subquery
+    subquery: |
+      SELECT
+        ITNBR,
+        MAX(`SAP#`) AS ITEM_NUMBER
+      FROM
+        bronze_ingestion_dev01.mapics_mapics_crfile.sapitmxref
+      GROUP BY
+        ITNBR
+
+  - source_id: prodprfcd_subquery
+    subquery: |
+      SELECT
+        A.ITEM AS ITEM_NUM,
+        A.EFDAT
+      from
+        bronze_ingestion_dev01.mapics_mapics_ffiles.prodprfp a
+          inner join (
+            select
+              ITEM,
+              MAX(EFDAT) as EFDAT
+            from
+              bronze_ingestion_dev01.mapics_mapics_ffiles.prodprfp
+            where
+              MSNAM = 'ITCATSUB'
+            group by
+              ITEM
+          ) b
+      on a.EFDAT = b.EFDAT
+
+
+transformations:
+  - id: mapics_itemasa_transformation
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: SOURCE_SYSTEM_ID
+        expression: "'SRC001'"
+      - column: ITEM_PARENT_NUMBER
+        expression: "CASE 
+          WHEN LENGTH(TRIM(ITNBR)) > 1 
+            AND REGEXP_LIKE(SUBSTR(TRIM(ITNBR), 1, 1), '[A-Za-z]') 
+            AND SUBSTR(TRIM(ITNBR), 2, 1) = '-' 
+          THEN TRIM(ITNBR)
+          ELSE SUBSTR(
+                TRIM(ITNBR), 
+                1, 
+                LENGTH(TRIM(ITNBR)) - INSTR(REVERSE(TRIM(ITNBR)), '-') 
+              )
+         END"
+      - column: LEGACY_ITEM_NUMBER
+        expression: "TRIM(ITNBR)"
+      - column: ITEM_DESCRIPTION
+        expression: "TRIM(ITDSC)"
+      - column: ITEM_UNIT_OF_MEASURE
+        expression: "TRIM(UNMSR)"
+      - column: ITEM_BASE_SIZE
+        expression: "TRIM(WEGHT)"
+      - column: ITEM_BRAND_CODE
+        expression: "NULL"
+      - column: ITEM_SUBBRAND_1_CODE
+        expression: "NULL"
+      - column: ITEM_SUBBRAND_2_CODE
+        expression: "NULL"
+      - column: ITEM_SUBBRAND_3_CODE
+        expression: "NULL"
+      - column: ITEM_SUBBRAND_4_CODE
+        expression: "NULL"
+      - column: ITEM_SUBBRAND_5_CODE
+        expression: "NULL"
+      - column: ITEM_PARENT_DEPARTMENT_CODE
+        expression: "NULL"
+      - column: ITEM_DEPARTMENT_CODE
+        expression: "TRIM(DPTNO)"
+      - column: ITEM_CLASS_1_CODE
+        expression: "TRIM(ITCLS)"
+      # - column: ITEM_CLASS_2_CODE
+      #   expression: "SUBSTRING(TRIM(PPCODE), 1, 4)"
+      # - column: ITEM_CLASS_3_CODE
+      #   expression: "CASE WHEN LENGTH(TRIM(PPCODE)) > 4 THEN SUBSTRING(TRIM(PPCODE), 5, 4) ELSE NULL END"
+      # - column: ITEM_CLASS_4_CODE
+      #   expression: "CASE WHEN LENGTH(TRIM(PPCODE)) > 8 THEN SUBSTRING(TRIM(PPCODE), 9, 4) ELSE NULL END"
+      - column: ITEM_CLASS_5_CODE
+        expression: "NULL"
+      - column: PARENT_SPECIES_CODE
+        expression: "NULL"
+      - column: SPECIES_1_CODE
+        expression: "NULL"
+      - column: SPECIES_2_CODE
+        expression: "NULL"
+      - column: SPECIES_3_CODE
+        expression: "NULL"
+      - column: SPECIES_4_CODE
+        expression: "NULL"
+      - column: SPECIES_5_CODE
+        expression: "NULL"
+      - column: ITEM_MANUFACTURING_LINE_CODE
+        expression: "NULL"
+      - column: ORGANIC_STATUS_CODE
+        expression: "NULL"
+      - column: GMO_CODE
+        expression: "NULL"
+      # - column: ALLERGEN_CODE_1_CODE
+      #   expression: "CAST(LBALG1 AS STRING)"
+      # - column: ALLERGEN_CODE_2_CODE
+      #   expression: "CAST(LBALG2 AS STRING)"
+      # - column: ALLERGEN_CODE_3_CODE
+      #   expression: "CAST(LBALG3 AS STRING)"
+      # - column: ALLERGEN_CODE_4_CODE
+      #   expression: "CAST(LBALG4 AS STRING)"
+      # - column: ALLERGEN_CODE_5_CODE
+      #   expression: "CAST(LBALG5 AS STRING)"
+      # - column: ALLERGEN_CODE_6_CODE
+      #   expression: "CAST(LBALG6 AS STRING)"
+      # - column: ALLERGEN_CODE_7_CODE
+      #   expression: "CAST(LBALG7 AS STRING)"
+      # - column: ALLERGEN_CODE_8_CODE
+      #   expression: "CAST(LBALG8 AS STRING)"
+      # - column: ALLERGEN_CODE_9_CODE
+      #   expression: "CAST(LBALG9 AS STRING)"
+      # - column: ALLERGEN_CODE_10_CODE
+      #   expression: "CAST(LBALG0 AS STRING)"
+      - column: ITEM_SOURCING_PLANT_1
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_2
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_3
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_4
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_5
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_6
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_7
+        expression: "NULL"
+      - column: ITEM_SOURCING_PLANT_8
+        expression: "NULL"
+      - column: SHELF_LIFE
+        expression: "CAST(QCDAY AS INT)"
+      - column: SHELF_LIFE_UNIT_OF_MEASURE
+        expression: "'DAYS'"
+      - column: LEAD_TIME
+        expression: "NULL"
+      - column: LEAD_TIME_UNIT_OF_MEASURE
+        expression: "NULL"
+      - column: ITEM_FLAVOR_1_CODE
+        expression: "NULL"
+      - column: ITEM_FLAVOR_2_CODE
+        expression: "NULL"
+      - column: ITEM_FLAVOR_3_CODE
+        expression: "NULL"
+      - column: ITEM_FLAVOR_4_CODE
+        expression: "NULL"
+      - column: ITEM_FLAVOR_5_CODE
+        expression: "NULL"
+      - column: COUNTRY_OF_ORIGIN_CODE
+        expression: "NULL"
+
+  - id: mapics_lblall_transformation
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: HALAL_STATUS_CODE
+        expression: "LBOTH1"
+      - column: KOSHER_STATUS_CODE
+        expression: "LBKOSH"
+
+combine:
+  - combine_id: itemasa_combine
+    joins: 
+      join_id: itemasa_join
+      source_ids:
+        - source_id: mapics_itemasa
+          alias: a
+          join_order: 1
+        - source_id: sapitmxref_subquery
+          alias: d
+          join_order: 2
+          join_type : "leftouter"
+        # - source_id: mapics_lblall
+        #   alias: C
+        #   join_order: 3
+        #   join_type : "leftouter"
+        # - source_id: prodprfcd_subquery
+        #   alias: E
+        #   join_order: 4
+        #   join_type : "leftouter"
+      join_conditions:
+        # - left: A
+        #   right: C
+        #   condition: "A.ITNBR = C.LBITEM"
+        - left: a
+          right: d
+          condition: a.ITNBR = d.ITNBR
+        # - left: A
+        #   right: E
+        #   condition: "A.ITNBR = E.ITEM_NUM"
+      select_columns: 
+        a: ["ITNBR","SOURCE_SYSTEM_ID", "ITEM_PARENT_NUMBER", "LEGACY_ITEM_NUMBER", "ITEM_DESCRIPTION", "ITEM_UNIT_OF_MEASURE", "ITEM_BASE_SIZE" ]
+        d: ["ITNBR"]
+        # C: ["HALAL_STATUS_CODE", "KOSHER_STATUS_CODE"]
+      alias: itemasa_joined
+
+targets:
+  - table_id: mapics_itemasa_table_id
+    table: silver_dev01.pricing.itemasa_joined
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

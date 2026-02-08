@@ -25,14 +25,20 @@ class TestAdmTableWriter(unittest.TestCase):
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger('adm.integration.adm_table_writer')
         self.logger.setLevel(logging.DEBUG)
-        self.table_name_merge="nsarvi.adm.customer_sales"
+        self.table_name_merge="sandbox.integration_framework.customer_sales"
+        self.table_name_customer_mapics="sandbox.integration_framework.customer_mapics"
+        self.table_name_sales_mapics="sandbox.integration_framework.sales_mapics"
 
 
     def setUp(self):
         """Creates a reusable DataFrame with 10 rows."""
         self.logger.info(f"dropping tables if they exist  {self.table_name_merge}")
-        self.table_name_merge="nsarvi.adm.customer_sales"
+        self.table_name_merge="sandbox.integration_framework.customer_sales"
+
+        self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_sales_mapics}")
+        self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_customer_mapics}")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_merge}")
+        
         # Create test data for adm_customer_mapics table - Initial data for merge
         self.customer_schema = StructType([
             StructField("customer_id", StringType(), True),
@@ -117,7 +123,7 @@ class TestAdmTableWriter(unittest.TestCase):
         self.logger.info("Dropping tables ")
         # self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_merge}")
 
-    @unittest.skip("Skipping ")
+
     def test_write_table_merge(self):
         """Tests the write_table method with merge operation."""
         writer = AdmTableWriter("tests/configs/targets/write_table_merge_config.yaml")

@@ -1,0 +1,91 @@
+sources:
+  - source_id: payroll
+    table: sandbox.h2r_dbx_poc.ec_payroll
+    read_type: table
+    transformation_id: payroll
+  - source_id: employee
+    table: sandbox.h2r_dbx_poc.ec_employee
+    read_type: table
+    transformation_id: employee
+
+
+transformations:
+  - id: payroll
+    columns_to_snake_case: true
+  - id: employee
+    columns_mapping:
+      Grp: group  
+      Loc: location   
+    columns_to_snake_case: true
+    column_concatenations:
+      - target_column: full_name
+        columns:
+          - expression: first_name
+          - expression: last_name
+        delimiter: " "
+    columns_expressions:
+      bus_id: substr(bus_id, 2, length(bus_id)-1)
+
+combine:
+  - combine_id: emp_payroll
+    joins: 
+      join_id: emp_payroll
+      source_ids:
+        - source_id: payroll
+          alias: p
+          join_order: 1
+        - source_id: employee
+          alias: e
+          join_order: 2
+          join_type : inner
+      join_conditions:
+        - left: p
+          right: e
+          condition: p.emp_id = e.emp_id
+      select_columns: 
+        p: [emp_id,
+            net_pay,
+            bank_account_number,
+            bank_name,
+            payment_method]
+        e: [person_id,
+            emp_id,
+            first_name,
+            last_name,
+            group,
+            location,
+            position,
+            position_title,
+            fte,
+            emp_class,
+            type_of_work,
+            emp_type,
+            emplmt_type,
+            bus_id,
+            bus_name,
+            segment_id,
+            dept_name,
+            cost_center,
+            cost_center_name,
+            legal_ent_name,
+            loc_name,
+            city,
+            state,
+            country,
+            region,
+            band,
+            job_class_code,
+            job_classification,
+            full_name]
+      alias: emp_payroll
+
+targets:
+  - table_id: silver_head_count_poc
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.silver_head_count_poc
+    schema_file: use_cases/h2r/h2r_silver_head_count_poc_schema.json
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

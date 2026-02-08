@@ -6,3 +6,6 @@ transformations:
     drop_duplicates:
       - column: "order_id"
       - column: "customer_id"
+
+  - id: "transformation_id_2"
+    drop_duplicates: true

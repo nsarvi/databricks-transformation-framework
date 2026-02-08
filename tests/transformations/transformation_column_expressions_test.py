@@ -4,6 +4,7 @@ from pathlib import Path
 src_path = (Path(__file__).resolve().parent.parent.parent / "src").as_posix()
 sys.path.append(src_path)
 
+from typing import Optional
 import unittest
 from datetime import datetime
 from pyspark.sql import SparkSession

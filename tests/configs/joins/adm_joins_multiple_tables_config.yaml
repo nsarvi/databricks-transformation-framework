@@ -1,17 +1,17 @@
 # Configurations for the source table(s)
 sources:
   - source_id: "source_1"
-    table: "nsarvi.adm.customer_mapics"
+    table: "sandbox.integration_framework.customer_mapics"
     transformation_id: "transformation_id_1"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
   - source_id: "source_2"
-    table: "nsarvi.adm.sales_mapics"
+    table: "sandbox.integration_framework.sales_mapics"
     transformation_id: "transformation_id_2"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
   - source_id: "source_3"
-    table: "nsarvi.adm.store"
+    table: "sandbox.integration_framework.store"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
 
@@ -57,7 +57,7 @@ combine:
         - source_id: "source_3"
           alias: "st_lkup"
           join_order: 3
-          join_type: "inner"
+          join_type: "leftouter"
       join_conditions: 
         - left: "c"
           right: "s"
@@ -73,11 +73,40 @@ combine:
         - condition: "s.price < 50"
       alias: "customer_sales"  # Alias for the combined table
 
+  - combine_id: "combine_id_inner_join"
+    joins:
+      join_id: "join_id_1"
+      source_ids: 
+        - source_id: "source_1"
+          alias: "c"
+          join_order: 1
+        - source_id: "source_2"
+          alias: "s"
+          join_order: 2
+          join_type: "inner"
+        - source_id: "source_3"
+          alias: "st_lkup"
+          join_order: 3
+          join_type: "left"
+      join_conditions: 
+        - left: "c"
+          right: "s"
+          condition: "c.customer_id = s.customer_id"
+        - left: "s"
+          right: "st_lkup"
+          condition: "s.store_id_mapics = st_lkup.store_id"
+      select_columns:
+        c: ["customer_id", "customer_name", "customer_address", "customer_phone_mapics", "customer_email"]
+        s: ["customer_id", "transaction_id", "product_id_mapics", "store_id_mapics", "quantity", "price"]
+        st_lkup: ["store_id","store_name"]  # Include store_name from the store lookup table
+      post_join_filters:
+        - condition: "s.price < 50"
+      alias: "customer_sales"  # Alias for the combined table
 
 # Configurations for the target table(s)
 targets:
   - table_id: "target_customer_sales"
-    table: "nsarvi.adm.customer_sales"
+    table: "sandbox.integration_framework.customer_sales"
     write_type: "table"
     write_mode: "overwrite"
     partition_by: ["store_id"]  # Clustering and partitioning cannot both be specified

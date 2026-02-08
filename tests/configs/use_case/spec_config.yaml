@@ -1,0 +1,115 @@
+# Global Configurations for the structured streaming tables
+global_config:
+   base_checkpoint_location: <Location of streaming checkpoints> # Required for streaming writes, if used
+   query_name_prefix: <Query Prefix> # Optional. Prefix for the query name
+
+# Configurations for the source table(s)
+sources:
+  - source_id: <Unique Source id> # Required
+    table: <Fully qualified table name> # Required. 
+    transformation_id: # Required
+    read_type: # Required  Options are "table" for batch read table, "stream" for streaming source
+    subquery: # Optional
+    transformation_ref_id: # Optional. If not provided, the transformation_id from the source will be used
+
+# Transformation will be applied on the table or DataFrame      
+transformations:
+  # Unique name for the transformation 
+  - id: <Unique Transformatin id> # Required
+    # Additional columns to target table
+    additional_columns:          
+      - name: <Column Name> # Required
+        type: <Column Type> # Required. Options are "string", "int", "long", "double", "float", "boolean", "timestamp"
+        value: <Column Value> # Required. Column value to be added to the target table
+    filters:
+      - condition: <Filter Condition> # Optional. Filter condition to be applied on the source table
+    column_expressions:
+      - column: <Column Name> # Required. Column name to be transformed
+        expression: <Transformation Expression> # Required. Transformation expression to be applied on the column
+    column_concatenations:  
+      - target_column: <Target Column Name> # Required. Target column name for the concatenation
+        columns:
+          - expression: <Column Expression> # Required. Column expression to be concatenated
+          - expression: <Column Expression> # Required. Column expression to be concatenated
+        delimiter: <Delimiter> # Optional. Delimiter to be used for the concatenation
+    column_rename:
+      - column: <Column Name> # Required. Column name to be renamed
+        target_column: <Target Column Name> # Required. Target column name after renaming
+    custom_functions: 
+      - name: <Custom Function Name> # Required. Name of the custom function to be applied
+        column_mappings:
+          - input_columns: # Required. List of input columns for the custom function
+              - <Input Column Name> # Required. Input column name
+            output_column: <Output Column Name> # Required. Output column name after applying the custom function
+    columns_to_select:
+      - <Column Name> # Required. Column name to be selected from the source table
+      - <Column Name> # Required. Column name to be selected from the source table
+    distinct_columns:
+      - column: <Column Name> # Required. Column name to be used for distinct operation
+    drop_duplicates:
+      - column: <Column Name> # Required. Column name to be used for drop duplicates operation
+      - column: <Column Name> # Required. Column name to be used for drop duplicates operation
+    transformation_sql_file: <SQL File Path> # Optional. SQL file which has the transformation logic
+
+combine:
+  - combine_id: <Unique Combine id> # Required
+    joins:
+      join_id: <Unique Join id> # Required
+      source_ids: 
+        - source_id: <Source id> # Required. Source id for the join
+          alias: <Alias Name> # Required. Alias name for the source table
+          join_order: <Join Order> # Required. Join order for the source table
+          join_type: <Join Type> # Optional. Join type for the source table. Options are "inner", "left", "right", "full" etc.
+      join_conditions: 
+        - left: <Left Alias> # Required. Left alias for the join condition
+          right: <Right Alias> # Required. Right alias for the join condition
+          condition: <Join Condition> # Required. Join condition for the join
+      select_columns:
+        <Alias Name>: # Required. Alias name for the source table
+          - <Column Name> # Required. Column name to be selected from the source table
+          - <Column Name> # Required. Column name to be selected from the source table
+      row_operations:
+        partition_by: # Optional. Columns to partition by
+          - <Column Name> # Required. Column name to be used for partitioning
+          - <Column Name> # Required. Column name to be used for partitioning
+        order_by: 
+          - column: <Column Name> # Required. Column name to be used for ordering
+            order: <Order Type> # Required. Options are "asc" or "desc"
+        rank_column: <Rank Column Name> # Required. Name of the rank column
+        filter_condition: <Filter Condition> # Optional. Condition to filter the rows after ranking
+      post_join_filters:
+        - condition: <Post Join Filter Condition> # Optional. Post join filter condition to be applied on the joined table
+      alias: <Alias Name> # Required. Alias name for the combined table
+    unions:
+      - union_id: <Unique Union id> # Required
+        source_ids: 
+          - source_id: <Source id> # Required. Source id for the union
+          - source_id: <Source id> # Required. Source id for the union
+        distinct: <Distinct Flag> # Optional. Flag to indicate if distinct rows should be selected
+          
+  - target_id: <Unique Target id> # Required
+    table: <Fully qualified table name> # Required. Fully qualified table name for the target table
+    write_type: <Write Type> # Required. Options are "overwrite" or "append"
+    write_mode: <Write Mode> # Required. Options are "overwrite" or "append"
+    partition_by: # Optional. Columns to partition by
+      - <Column Name> # Required. Column name to be used for partitioning
+      - <Column Name> # Required. Column name to be used for partitioning
+    cluster_by: # Optional. Columns to cluster by
+      - <Column Name> # Required. Column name to be used for clustering
+      - <Column Name> # Required. Column name to be used for clustering
+    source_type: # Optional. Source type for the target table
+    source_id: # Optional. Source id for the target table
+    source_alias: # Optional. Source alias for the target table
+    target_alias: # Optional. Target alias for the target table
+    merge_condition: # Optional. Merge condition for the target table
+    merge_actions: # Optional. Merge actions for the target table
+      when_matched:
+          condition: # Optional. Condition for the matched rows
+      when_not_matched:
+          condition: # Optional. Condition for the not matched rows
+    for_each_batch_function: <Module Path.Function Name># Optional. Function to be applied for each batch
+    options: # Optional. Additional options for the target table
+      <Option Name>: <Option Value> # Required. Option name and value for the target table
+    schema_file: # Optional. Schema file for the target table 
+    table_properties: # Optional. Table properties for the target table
+      <Property Name>: <Property Value> # Required. Property name and value for the target table

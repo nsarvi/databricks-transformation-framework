@@ -1,0 +1,23 @@
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "region"
+        type: "string"
+        value: "''"
+    # Column expressions to be applied
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "total_price"
+        expression: "quantity * price"
+    custom_functions: 
+      - name: "p2c.custom.transformations.calculate_total_price"
+        column_mappings:
+          - input_columns: ["price", "quantity"]
+            output_column: "total_price_by_func"  # new column
+      - name: "p2c.custom.transformations.get_state_full_name"
+        column_mappings:
+          - input_columns: ["state"]
+            output_column: "state"  # overwrite existing column

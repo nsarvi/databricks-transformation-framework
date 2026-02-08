@@ -1,0 +1,28 @@
+# Configurations for the source table(s)
+sources:
+  - source_id: "source_stream_tab_1"
+    table: "sandbox.integration_framework.customer_mapics_stream_1"
+    transformation_id: "transformation_id_1"
+    read_type: "stream"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
+
+ 
+# Transformatin will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "source_system"
+        type: "string"
+        value: "'MAPICS'"
+
+
+  - id: "transformation_id_2"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "source_system"
+        type: "string"
+        value: "'MDM'"

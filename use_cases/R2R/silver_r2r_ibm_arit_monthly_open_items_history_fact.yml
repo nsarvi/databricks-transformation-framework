@@ -1,0 +1,116 @@
+sources:
+  - source_id: aritohst_open_item_month_end_hist
+    table: bronze_dev01.db2_db21_misdb2a.aritohst_open_item_month_end_hist
+    read_type: table
+    transformation_id: aritohst_open_item_month_end_hist_transformation
+
+transformations:
+  - id: aritohst_open_item_month_end_hist_transformation
+    columns_to_select:
+      - "OH_SEQ_NBR"
+      - "OH_COPC"
+      - "OH_ACCT_NBR"
+      - "OH_MONTHEND_CYM"
+      - "OH_CO"
+      - "OH_DATE"
+      - "OH_ITEM_DATE"
+      - "OH_ITEM_NBR"
+      - "OH_Net_Due_Date"
+      - "OH_DPD"
+      - "OH_TYPE"
+      - "OH_REF_NBR"
+      - "OH_CUST_ORDER_1"
+      - "OH_CUST_ORDER_2"
+      - "OH_INV_AMT"
+      - "OH_US_AMT"
+      - "OH_ITEM_FROM"
+      - "OH_LOCATION"
+      - "OH_CURR"
+    drop_duplicates: true
+    custom_functions: 
+      - name: "use_cases.custom_transformations.r2r_tx.remove_leading_trailing_spaces"
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "validation_status"
+        expression: "CASE 
+            WHEN OH_SEQ_NBR IS NULL OR TRIM(OH_SEQ_NBR) = '' THEN 'Missing Sequel Number'
+            WHEN OH_COPC IS NULL OR TRIM(OH_COPC) = '' THEN 'Missing Profit Center Code'
+            WHEN OH_ACCT_NBR IS NULL OR TRIM(OH_ACCT_NBR) = '' THEN 'Missing Account Number Code'
+            WHEN OH_MONTHEND_CYM IS NULL OR TRIM(OH_MONTHEND_CYM) = '' THEN 'Missing Monthend Date'
+            WHEN OH_CO IS NULL OR TRIM(OH_CO) = '' THEN 'Missing Company Code'
+            WHEN OH_DATE IS NULL OR TRIM(OH_DATE) = '' THEN 'Missing Openhist Date'
+            WHEN OH_ITEM_DATE IS NULL OR TRIM(OH_ITEM_DATE) = '' THEN 'Missing Item Date'
+            WHEN OH_ITEM_NBR IS NULL OR TRIM(OH_ITEM_NBR) = '' THEN 'Missing Item Number'
+            WHEN OH_Net_Due_Date IS NULL OR TRIM(OH_Net_Due_Date) = '' THEN 'Missing Net Due Date'
+            WHEN OH_DPD IS NULL OR TRIM(OH_DPD) = '' THEN 'Missing Days Past Due'
+            WHEN OH_TYPE IS NULL OR TRIM(OH_TYPE) = '' THEN 'Missing Source Transaction Code'
+            WHEN OH_REF_NBR IS NULL OR TRIM(OH_REF_NBR) = '' THEN 'Missing Reference Number'
+            WHEN OH_CUST_ORDER_1 IS NULL OR TRIM(OH_CUST_ORDER_1) = '' THEN 'Missing Customer Order_1'
+            WHEN OH_CUST_ORDER_2 IS NULL OR TRIM(OH_CUST_ORDER_2) = '' THEN 'Missing Customer Order_2'
+            WHEN OH_INV_AMT IS NULL OR TRIM(OH_INV_AMT) = '' THEN 'Missing Invoice Amount'
+            WHEN OH_US_AMT IS NULL OR TRIM(OH_US_AMT) = '' THEN 'Missing US Amount'
+            WHEN OH_ITEM_FROM IS NULL OR TRIM(OH_ITEM_FROM) = '' THEN 'Missing Source System'
+            WHEN OH_LOCATION IS NULL OR TRIM(OH_LOCATION) = '' THEN 'Missing Location'
+            WHEN OH_CURR IS NULL OR TRIM(OH_CURR) = '' THEN 'Missing Currency Type'
+            ELSE 'Valid'
+          END"
+      - column: "create_dt"
+        expression: "CAST(date_format(current_timestamp(),'yyyy-MM-dd HH:mm:ss') AS timestamp)"
+      - column: "last_update_dt"
+        expression: "CAST(date_format(current_timestamp(),'yyyy-MM-dd HH:mm:ss') AS timestamp)"
+      - column: "last_job_run_id"
+        expression: "'p_12345'"
+      - column: "ibm_doc_type_ck"
+        expression: "CASE 
+          WHEN OH_ITEM_FROM = 'AGRIS' THEN 
+            CASE 
+            WHEN SUBSTRING(OH_ITEM_NBR, 1, 1) = 'R' THEN CONCAT(TRIM(OH_ITEM_FROM), 'AC')
+            ELSE CONCAT(TRIM(OH_ITEM_FROM), OH_TYPE)
+            END
+          ELSE CONCAT(TRIM(OH_ITEM_FROM), OH_TYPE)
+          END "
+      - column: "GL_TYPE"
+        expression: "CASE WHEN OH_TYPE = 'AT' THEN 'NR' ELSE 'AR' END"
+      - column: "ibm_gl_coding_ck"
+        expression: "CONCAT_WS('|', OH_COPC, GL_TYPE, OH_CURR)"
+    columns_mapping:
+      OH_SEQ_NBR: ibm_arit_hist_legacy_account_ck
+      OH_COPC: ibm_arit_profit_center_ck
+      OH_ACCT_NBR: ibm_arit_customer_ck
+      OH_MONTHEND_CYM: openhist_monthend_date
+      OH_CO: openhist_company_code
+      OH_DATE: openhist_date
+      OH_ITEM_DATE: item_date
+      OH_ITEM_NBR: item_num
+      OH_Net_Due_Date: net_due_date
+      OH_DPD: days_past_due_num
+      OH_TYPE: source_transaction_cd
+      OH_REF_NBR: refrence_num
+      OH_CUST_ORDER_1: customer_purchase_order1_num
+      OH_CUST_ORDER_2: customer_purchase_order2_num
+      OH_INV_AMT: invoice_amt
+      OH_US_AMT: usd_currency_amt
+      OH_ITEM_FROM: source_system_cd
+      OH_LOCATION: location_cd
+      OH_CURR: currency_cd
+    column_concatenations:
+      - target_column: "ibm_arit_monthly_open_items_history_ck"
+        columns:
+          - expression: "ibm_arit_customer_ck"
+          - expression: "ibm_arit_profit_center_ck"
+          - expression: "ibm_doc_type_ck"
+          - expression: "ibm_arit_hist_legacy_account_ck"
+          - expression: "ibm_gl_coding_ck"
+        delimiter: "|"
+
+
+targets:
+  - table_id: ibm_arit_monthly_open_items_hist_fact
+    table: silver_dev01.r2r.ibm_arit_monthly_open_items_hist_fact_2
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

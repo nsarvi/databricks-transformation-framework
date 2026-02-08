@@ -1,0 +1,14 @@
+targets:
+  - table_id: "source_customer_mapics"
+    table: "sandbox.integration_framework.customer_mapics"
+    write_type: "table"
+    write_mode: "overwrite"
+    partition_by: ["customer_region"]  # Clustering and partitioning cannot both be specified
+    options:
+      mergeSchema: "true"  # Option to merge schema
+      overwriteSchema: "true"  # Option to overwrite schema
+    schema_file: "tests/configs/schemas/bronze/adm_customer_mapics.json"
+    table_properties:
+      delta.autoOptimize.optimizeWrite: "true"
+      delta.autoOptimize.autoCompact: "true"
+

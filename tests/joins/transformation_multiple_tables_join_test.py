@@ -131,31 +131,50 @@ class TestAdmDataTransformer(unittest.TestCase):
         logger.info(result_df.show())
         
         # Check if cust_1 and cust_3 are in the result set
-        # result_customer_ids = [row.transaction_id for row in result_df.select("transaction_id").distinct().collect()]
-        # self.assertIn("trans_1", result_customer_ids, "trans_1 is not in the result set")
-        # self.assertIn("trans_3", result_customer_ids, "trans_3 is not in the result set")
+        result_customer_ids = [row.transaction_id for row in result_df.select("transaction_id").distinct().collect()]
+        self.assertIn("trans_1", result_customer_ids, "trans_1 is not in the result set")
+        self.assertIn("trans_3", result_customer_ids, "trans_3 is not in the result set")
 
 
-    
-    @unittest.skip("Its working, skip for now")
-    def test_apply_joins_on_multiple_tables2(self):
-        """Tests the apply_joins method on multiple tables."""
+
+    def test_apply_joins_on_multiple_tables_inner_join(self):
+        """Tests the apply_joins method on multiple tables - inner join."""
         transformer = AdmDataTransformer("tests/configs/joins/adm_joins_multiple_tables_config.yaml")
-        result_df = transformer.apply_joins("combine_id_1")
+        result_df = transformer.apply_joins("combine_id_inner_join")
         
          # Enable the logger to debug level
         logging.basicConfig(level=logging.DEBUG)
         logger = logging.getLogger('adm.integration.adm_table_writer')
         logger.setLevel(logging.DEBUG)
+        logger.info("Displaying Customers ")
         logger.info(self.customer_df.show())
+        logger.info("Displaying Sales ")
         logger.info(self.sales_df.show())
+        logger.info("Displaying Stores")
+        logger.info(self.store_df.show())
+        logger.info("Displaying Joining and applying row operations ")
         logger.info(result_df.show())
         
         # Check if cust_1 and cust_3 are in the result set
         result_customer_ids = [row.transaction_id for row in result_df.select("transaction_id").distinct().collect()]
-  
         self.assertIn("trans_1", result_customer_ids, "trans_1 is not in the result set")
         self.assertIn("trans_3", result_customer_ids, "trans_3 is not in the result set")
+ 
+
+    def test_apply_p2c_sales_order_invoice(self):
+        """Tests the apply_joins method on multiple tables - inner join."""
+        transformer = AdmDataTransformer("tests/configs/joins/sales_order_invoice.yml")
+        result_df = transformer.apply_joins("combine_1")
+        
+         # Enable the logger to debug level
+        logging.basicConfig(level=logging.DEBUG)
+        logger = logging.getLogger('adm.integration.adm_table_writer')
+        logger.setLevel(logging.DEBUG)
+       
+        logger.info(result_df.show())
+        
+
+
 
         
 if __name__ == "__main__":

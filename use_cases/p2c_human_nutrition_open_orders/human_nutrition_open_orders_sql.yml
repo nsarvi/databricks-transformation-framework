@@ -1,0 +1,19 @@
+
+# Transformation will be applied on the target tables      
+transformations:
+  - id: "ibmdb2"
+    # SQL file which has the transformation logic
+    transformation_sql_file: "../../use_cases/p2c_human_nutrition_open_orders/sql/ibm_open.sql"
+  - id: "jde_eu"
+    # SQL file which has the transformation logic
+    transformation_sql_file: "../../use_cases/p2c_human_nutrition_open_orders/sql/jde_eu_open.sql"
+
+targets:
+  - table_id: hn_open_orders_sql
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.hn_open_orders_sql
+    write_type: table
+    write_mode: overwrite
+    options:
+      overwriteSchema: "true" 
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

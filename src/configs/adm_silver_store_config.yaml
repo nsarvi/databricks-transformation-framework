@@ -1,11 +1,11 @@
 # Target table in Silver layer. This table will have transfored columns and data
 target_table:
-  name: "nsarvi.adm.final_sales"
+  name: "sandbox.integration_framework.final_sales"
   schema_file: "adm_silver_store_config.json"
 
 # Configurations for the source table(s)
 sources:
-  - table: "nsarvi.adm.adm_store_1"
+  - table: "sandbox.integration_framework.adm_store_1"
     # Columns to select and map the source table column(s) to target table column(s) name. This is also a column rename
     column_mapping:   
       sales_id: "sales_id"
@@ -25,7 +25,7 @@ sources:
     filters:
       - "cost > 100"
 
-  - table: "nsarvi.adm.adm_store_2"
+  - table: "sandbox.integration_framework.adm_store_2"
     column_mapping:
       sales_id: "transaction_id"
       store_id: "branch_id"
@@ -99,10 +99,10 @@ transformations:
 
 combine:
   unions:
-  - tables: ["nsarvi.adm.store1", "nsarvi.adm.store2"]
+  - tables: ["sandbox.integration_framework.store1", "sandbox.integration_framework.store2"]
     distinct: true  # Remove duplicates
   joins:
-    - table: "nsarvi.adm.store_info"
+    - table: "sandbox.integration_framework.store_info"
       on: "store_id"
       type: "left"
 

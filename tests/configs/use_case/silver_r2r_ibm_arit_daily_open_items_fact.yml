@@ -1,0 +1,116 @@
+sources:
+  - source_id: aritopen_open_item
+    table: bronze_dev01.db2_db21_misdb2a.aritopen_open_item
+    read_type: table
+    transformation_id: aritopen_open_item_transformation
+
+transformations:
+  - id: aritopen_open_item_transformation
+    columns_to_select:
+      - "OI_SEQ_NBR"
+      - "OI_COPC"
+      - "OI_ACCT_NBR"
+      - "OI_ITEM_DATE"
+      - "OI_ITEM_NBR"
+      - "OI_Net_Due_Date"
+      - "OI_DPD"
+      - "OI_TYPE"
+      - "OI_REF_NBR"
+      - "OI_CUST_ORDER_1"
+      - "OI_CUST_ORDER_2"
+      - "OI_INV_AMT"
+      - "OI_US_AMT"
+      - "OI_ITEM_FROM"
+      - "OI_LOCATION"
+      - "OI_CURR"
+    drop_duplicates: true
+    custom_functions: 
+      - name: "use_cases.custom_transformations.r2r_tx.remove_leading_trailing_spaces"
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "validation_status"
+        expression: "CASE 
+                        WHEN OI_SEQ_NBR IS NULL OR trim(OI_SEQ_NBR) = '' THEN 'Missing Sequel Number'
+                        WHEN OI_COPC IS NULL OR trim(OI_COPC) = '' THEN 'Missing Profit Center Code'
+                        WHEN OI_ACCT_NBR IS NULL OR trim(OI_ACCT_NBR) = '' THEN 'Missing Account Number Code'
+                        WHEN OI_ITEM_DATE IS NULL OR trim(OI_ITEM_DATE) = '' THEN 'Missing Item Date'
+                        WHEN OI_ITEM_NBR IS NULL OR trim(OI_ITEM_NBR) = '' THEN 'Missing Item Number'
+                        WHEN OI_Net_Due_Date IS NULL OR trim(OI_Net_Due_Date) = '' THEN 'Missing Net Due Date'
+                        WHEN OI_DPD IS NULL OR trim(OI_DPD) = '' THEN 'Missing Days Past Due'
+                        WHEN OI_TYPE IS NULL OR trim(OI_TYPE) = '' THEN 'Missing Source Transaction Code'
+                        WHEN OI_REF_NBR IS NULL OR trim(OI_REF_NBR) = '' THEN 'Missing Reference Number'
+                        WHEN OI_CUST_ORDER_1 IS NULL OR trim(OI_CUST_ORDER_1) = '' THEN 'Missing Customer Order_1'
+                        WHEN OI_CUST_ORDER_2 IS NULL OR trim(OI_CUST_ORDER_2) = '' THEN 'Missing Customer Order_2'
+                        WHEN OI_INV_AMT IS NULL OR trim(OI_INV_AMT) = '' THEN 'Missing Invoice Amount'
+                        WHEN OI_US_AMT IS NULL OR trim(OI_US_AMT) = '' THEN 'Missing US Amount'
+                        WHEN OI_ITEM_FROM IS NULL OR trim(OI_ITEM_FROM) = '' THEN 'Missing Source System'
+                        WHEN OI_LOCATION IS NULL OR trim(OI_LOCATION) = '' THEN 'Missing Location'
+                        WHEN OI_CURR IS NULL OR trim(OI_CURR) = '' THEN 'Missing Currency Type'
+                        ELSE 'Valid'
+                      END"              
+      - column: "create_dt"
+        expression: "cast(date_format(current_timestamp(),'yyyy-MM-dd HH:mm:ss') as timestamp)"
+      - column: "OI_REF_NBR"
+        expression: "substring(OI_REF_NBR, 1, 26)"
+      - column: "last_update_dt"
+        expression: "cast(date_format(current_timestamp(),'yyyy-MM-dd HH:mm:ss') as timestamp)"
+      # - column: "last_job_run_id"
+      #   expression: "p_run_id"
+      - column: "ibm_doc_type_ck"
+        expression: "CASE 
+              WHEN OI_ITEM_FROM = 'AGRIS' THEN 
+              CASE 
+                WHEN substring(OI_ITEM_NBR, 1, 1) = 'R' THEN concat(trim(OI_ITEM_FROM), 'AC')
+                ELSE concat(trim(OI_ITEM_FROM), OI_TYPE)
+              END
+              ELSE concat(trim(OI_ITEM_FROM), OI_TYPE)
+            END"
+      - column: "GL_TYPE"
+        expression: "CASE 
+              WHEN OI_TYPE = 'AT' THEN 'NR'
+              ELSE 'AR'
+            END"
+    columns_mapping:
+      OI_SEQ_NBR: ibm_arit_legacy_account_ck
+      OI_COPC: ibm_arit_profit_center_ck
+      OI_ACCT_NBR: ibm_arit_customer_ck
+      OI_ITEM_DATE: item_date
+      OI_ITEM_NBR: item_num
+      OI_Net_Due_Date: net_due_date
+      OI_DPD: days_past_due_num
+      OI_TYPE: source_transaction_cd
+      OI_REF_NBR: refrence_num
+      OI_CUST_ORDER_1: customer_purchase_order1_num
+      OI_CUST_ORDER_2: customer_purchase_order2_num
+      OI_INV_AMT: invoice_amt
+      OI_US_AMT: usd_currency_amt
+      OI_ITEM_FROM: source_system_cd
+      OI_LOCATION: location_cd
+      OI_CURR: currency_cd
+      GL_TYPE: gl_type
+    column_concatenations:
+      - target_column: "ibm_gl_coding_ck"
+        columns:
+          - expression: "ibm_arit_profit_center_ck"
+          - expression: "gl_type"
+          - expression: "currency_cd"
+        delimiter: "|"
+      - target_column: "ibm_arit_daily_open_items_ck"
+        columns:
+          - expression: "ibm_arit_customer_ck"
+          - expression: "ibm_arit_profit_center_ck"
+          - expression: "ibm_doc_type_ck"
+          - expression: "ibm_arit_legacy_account_ck"
+          - expression: "ibm_gl_coding_ck"
+        delimiter: "|"
+
+targets:
+  - table_id: ibm_arit_daily_open_items_fact
+    table: silver_dev01.r2r.ibm_arit_daily_open_items_fact_2
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

@@ -1,0 +1,266 @@
+sources:
+  - source_id: jdexeeu_order_detail
+    table: bronze_dev01.jdexeeu_jdeproduction_proddta.f4211
+    read_type: table
+    transformation_id: jdexeeu_order_detail
+
+  - source_id: jdexeeu_customer_ledger
+    table: bronze_dev01.jdexeeu_jdeproduction_proddta.f03b11
+    read_type: table
+    transformation_id: jdexeeu_customer_ledger
+
+  - source_id: jdexeeu_payment_terms
+    table: bronze_dev01.jdexeeu_jdeproduction_proddta.f0014
+    read_type: table
+    transformation_id: jdexeeu_payment_terms
+
+  - source_id: jdexeeu_foundation_env
+    table: bronze_dev01.jdexeeu_jdeproduction_proddta.f0010
+    read_type: table
+    transformation_id: jdexeeu_foundation_env
+
+  - source_id: jdexeeu_currencytable
+    table: bronze_ingestion_dev01.saps4_ds1_r4sadditionaltables.tcurr
+    read_type: table
+    #transformation_id: jdexeeu_currencytable
+
+  - source_id: jdexeeu_address_book_master
+    table: bronze_dev01.jdexeeu_jdeproduction_proddta.f0101
+    read_type: table
+    transformation_id: jdexeeu_address_book_master
+
+  - source_id: jdexeeu_entity_mapping
+    table: sandbox.spoadm_dnacollab_lists.dim_entity_mapping
+    read_type: table
+    transformation_id: jdexeeu_entity_mapping
+
+  # No access
+  # - source_id: jdexeeu_r03_accts_receivbl
+  #   table: bronze_dev01.agris_agris_dbo.r03_accts_receivbl
+  #   read_type: table
+  #   transformation_id: proddta
+
+  # Not needed?
+  # - source_id: jdexeeu_copc_cross_reference
+  #   table: sandbox.spoadm_dnacollabration_p2c.dim_arcixrfc_copc_cross_ref
+  #   #table: bronze_dev01.spoadm_dnacollabration_p2c.dim_arcixrfc_copc_cross_ref
+  #   read_type: table
+  #   transformation_id: jdexeeu_copc_cross_reference
+
+  # Not needed?
+  # - source_id: jdexeeu_copc_profit_center
+  #   table: bronze_dev01.db2_db21_misdb2a.arcicopc_profit_center
+  #   read_type: table
+  #   transformation_id: jdexeeu_copc_profit_center
+
+
+  - source_id: jdexeeu_credit_dist_list
+    table: bronze_dev01.db2_db21_misdb2a.arcidist_credit_dist_list
+    read_type: table
+    transformation_id: jdexeeu_credit_dist_list
+
+  - source_id: jdexeeu_gbs_emea_billing_entities
+    table: sandbox.spoadm_dnacollabration_p2c.dim_gbsp2c_emea_bill_entities
+    # bronze_dev01.spoadm_dnacollabration_p2c.dim_gbsp2c_emea_bill_entities
+    read_type: table
+    transformation_id: jdexeeu_gbs_emea_billing_entities
+
+  # No access
+  # - source_id: sales_orders_invoice_jdeeu
+  #   table: silver_dev01.insightops.sales_orders_invoice_jdeeu
+  #   read_type: table
+  #   transformation_id: proddta
+
+
+
+transformations:
+  - id: jdexeeu_order_detail
+    #columns_to_snake_case: true
+    columns_to_select:
+      - SDDOC
+      - SDDCT
+      - SDKCO
+      - SDDOCO
+      - SDLNID
+      - SDSHAN
+      - SDCO
+      - SDVR01
+      - SDTORG
+      - SDADDJ
+      - SDTRDJ
+      - SDIVD
+      - SDUSER
+    columns_mapping:
+      SDDOC: invoice_number
+      SDDCT: document_type
+      SDSHAN: sold_to_customer_no
+      SDCO: entity_document_company_code
+      SDUSER: user_id
+
+      
+  - id: jdexeeu_customer_ledger
+    columns_to_select:
+      - RPDOC
+      - RPDCT
+      - RPKCO
+      - RPSDOC
+      - RPLNID
+      - RPPTC
+      - RPCRCD
+      - RPBCRC
+      - RPAG
+      - RPACR
+      - RPDDJ
+    columns_mapping:
+      RPPTC: payment_term_code
+      RPCRCD: currency_code
+
+  - id: jdexeeu_payment_terms
+    columns_to_select:
+      - PNPTC
+      - PNPTD
+    columns_mapping:
+      #PNPTC: payment_term_code
+      PNPTD: payment_term_description
+
+  - id: jdexeeu_address_book_master
+    columns_to_select:
+      - ABAN8
+      - ABALPH
+    columns_mapping:
+      ABALPH: sold_to_customer_name
+
+  - id: jdexeeu_foundation_env
+    columns_mapping:
+      x: x
+    columns_to_select:
+      - CCCO
+
+  - id: jdexeeu_entity_mapping
+
+    drop_duplicates:
+      - column: "COMPANY_CODE"
+    columns_to_select:
+      - COMPANY_CODE
+      - ENTITYNAME
+      - Region
+      - Division
+      - COUNTRY
+    columns_mapping:
+      Division: segment
+      ENTITYNAME: entity_document_company_name
+
+ # need to use recevable function which uses convert_due_date function
+  - id: jdexeeu_r03_accts_receivbl
+    columns_mapping:
+      x: x
+    columns_to_select:
+      - R03_SHP_DT_T
+      - R03_IVC_DT_T
+      - R03_LOC_CD_S
+      - R03_IVC_NUM_S
+      - R03_NAM_ID_S
+
+
+  - id: jdexeeu_credit_dist_list
+    columns_mapping:
+      x: x
+    columns_to_select:
+      - CD_COPC
+      - CD_LOCATION
+      - CD_INTL_CREDIT_REP
+
+  - id: jdexeeu_gbs_emea_billing_entities
+    columns_mapping:
+      x: x
+    columns_to_select:
+      - LOCATION_CODE
+
+      
+      
+      
+
+
+combine:
+  - combine_id: combine_1
+    joins: 
+      join_id: base_join
+      source_ids:
+        - source_id: jdexeeu_order_detail
+          alias: od
+          join_order: 1
+        - source_id: jdexeeu_customer_ledger
+          alias: cl
+          join_order: 2
+          join_type : inner
+        - source_id: jdexeeu_payment_terms
+          alias: pt
+          join_order: 3
+          join_type : left
+        - source_id: jdexeeu_address_book_master
+          alias: abm
+          join_order: 4
+          join_type : left
+        # - source_id: jdexeeu_foundation_env
+        #   alias: fe
+        #   join_order: 5
+        # - source_id: jdexeeu_entity_mapping
+        #   alias: em
+        #   join_order: 6
+        #   join_type : left
+        # - source_id: jdexeeu_credit_dist_list
+        #   alias: cdl
+        #   join_order: 7
+        #   join_type : left
+        # - source_id: jdexeeu_gbs_emea_billing_entities
+        #   alias: gebe
+        #   join_order: 8
+        #   join_type : left
+      join_conditions:
+        - left: od
+          right: cl
+          condition: >
+            od.invoice_number = cl.RPDOC 
+            and od.document_type = cl.RPDCT 
+            and od.SDKCO = cl.RPKCO 
+            and od.SDDOCO = cl.RPSDOC 
+            and od.SDLNID = cl.RPLNID
+        - left: cl
+          right: pt
+          condition: cl.payment_term_code = pt.PNPTC
+        - left: od
+          right: abm
+          condition: od.sold_to_customer_no = abm.ABAN8
+        # - left: ttf
+        #   right: rr
+        #   condition: ttf.requisition_id = rr.requisition_id
+        # - left: ttf
+        #   right: rr
+        #   condition: ttf.requisition_id = rr.requisition_id
+        # - left: ttf
+        #   right: rr
+        #   condition: ttf.requisition_id = rr.requisition_id
+        # - left: ttf
+        #   right: rr
+        #   condition: ttf.requisition_id = rr.requisition_id
+        # - left: ttf
+        #   right: rr
+        #   condition: ttf.requisition_id = rr.requisition_id
+
+      select_columns: 
+        od: ["invoice_number", "document_type", "sold_to_customer_no", "entity_document_company_code", "user_id", "SDKCO", "SDDOCO", "SDLNID"]
+        cl: ["RPDOC", "RPDCT", "RPKCO", "RPSDOC", "RPLNID", "payment_term_code", "currency_code"]
+        pt: ["payment_term_description", "PNPTC"]
+        abm: ["sold_to_customer_name", "ABAN8"]
+      alias: emp_payroll
+
+targets:
+  - table_id: silver_globlal_hr_request_poc
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.silver_globlal_hr_request_poc
+    #schema_file: use_cases/h2r/h2r_silver_head_count_poc_schema.json
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

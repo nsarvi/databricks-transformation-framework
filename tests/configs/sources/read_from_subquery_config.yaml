@@ -1,0 +1,22 @@
+# Configurations for the source table(s)
+sources:
+  - source_id: "sapitmxref_subquery"
+    subquery: |
+      SELECT customer_id, SUM(customer_loyalty_points) AS total_loyalty_points
+        FROM sandbox.integration_framework.customer_mapics
+        GROUP BY customer_id
+    transformation_id: "transformation_id_1"
+
+
+# Transformatin will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    # Additional columns to target table
+    additional_columns:          
+      - name: "processed_date"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "source_system"
+        type: "string"
+        value: "'MAPICS'"

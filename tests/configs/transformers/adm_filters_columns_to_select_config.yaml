@@ -1,0 +1,20 @@
+
+# Transformation will be applied on the target tables      
+transformations:
+  # Unique name for the transformation 
+  - id: "transformation_id_1"
+    columns_to_select:
+      - "order_id"
+      - "customer_id"
+
+  - id: "transformation_id_2"
+    columns_to_select:
+      - "order_id"
+      - "customer_id"
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "order_id"
+        expression: "lower(trim(order_id))"
+      - column: "customer_id"
+        expression: "trim(customer_id)"

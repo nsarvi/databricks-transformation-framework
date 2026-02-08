@@ -11,13 +11,14 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
 from adm.integration.adm_data_transformer import AdmDataTransformer
 from adm.integration import yaml_constants as YC
+from adm.integration.adm_base_data_transformer import AdmBaseDataTransformer
 
 class TestAdmDataTransformer(unittest.TestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        cls.spark = SparkSession.builder.master("local").appName("TestAdmDataTransformer").getOrCreate()
+        self.spark = AdmBaseDataTransformer._get_spark()
 
     def setUp(self):
         """Creates reusable DataFrames for testing."""

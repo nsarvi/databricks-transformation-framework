@@ -1,12 +1,12 @@
 # Configurations for the source table(s)
 sources:
   - source_id: "source_1"
-    table: "nsarvi.adm.customer_mapics"
+    table: "sandbox.integration_framework.customer_mapics"
     transformation_id: "transformation_id_1"
     read_type: "table"
 
   - source_id: "source_2"
-    table: "nsarvi.adm.sales_mapics"
+    table: "sandbox.integration_framework.sales_mapics"
     transformation_id: "transformation_id_2"
     read_type: "table"
 
@@ -44,8 +44,11 @@ combine:
         - source_id: "source_2"
           alias: "s"
           join_order: 2
-      join_type: "inner"
-      join_condition: ["customer_id"]
+          join_type: "inner"
+      join_conditions: 
+        - left: "c"
+          right: "s"
+          condition: "c.customer_id = s.customer_id"
       select_columns:
         c: ["customer_id", "customer_name", "customer_address", "customer_phone_mapics", "customer_email"]
         s: ["customer_id","transaction_id", "product_id_mapics", "store_id_mapics", "quantity", "price"]
@@ -56,9 +59,9 @@ combine:
 # Configurations for the target table(s)
 targets:
   - table_id: "target_customer_sales"
-    table: "nsarvi.adm.customer_sales"
-    write_type: "merge"
-    write_mode: "append"
+    table: "sandbox.integration_framework.customer_sales"
+    write_type: "table"  # Specifies whether the target is a table or stream
+    write_mode: "merge"  # Defines the operation: append, overwrite, or merge
     partition_by: ["store_id"]  # Clustering and partitioning cannot both be specified
     options:
       mergeSchema: "true"
@@ -67,11 +70,11 @@ targets:
     table_properties:
       delta.autoOptimize.optimizeWrite: "true"
       delta.autoOptimize.autoCompact: "true"
-    merge_source_type: "combine"  # Specify the type of the source (sources or combine )
-    merge_source_id: "combine_id_1"  # Specify the source for the merge (source section or join)
-    merge_source_alias: "source"  # Alias for the source DataFrame
+    source_type: "combine"  # Specify the type of the source (combine or source)
+    source_id: "combine_id_1"  # Specify the source for the operation
+    source_alias: "source"  # Alias for the source DataFrame
     target_alias: "target"  # Alias for the target DataFrame
-    merge_condition: "target.customer_id = source.customer_id"
+    merge_condition: "target.customer_id = source.customer_id"  # condition for merge or filtering
     merge_actions:
       when_matched:
         update:

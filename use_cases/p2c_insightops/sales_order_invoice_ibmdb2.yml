@@ -1,0 +1,387 @@
+sources:
+  - source_id: ibmdb2_inv_ord_details
+    table: bronze_dev01.db2_db21_misdb2a.opininor_invoice_order_detail
+    read_type: table
+    transformation_id: ibmdb2_inv_ord_details
+
+  - source_id: ibmdb2_profit_center
+    table: bronze_dev01.db2_db21_misdb2a.opencopc_company_profit_center
+    read_type: table
+    transformation_id: ibmdb2_profit_center
+
+  - source_id: ibmdb2_invoice_details
+    table: bronze_dev01.db2_db21_misdb2a.opininvc_invoice
+    read_type: table
+    transformation_id: ibmdb2_invoice_details
+
+  - source_id: ibmdb2_term_code
+    table: bronze_dev01.db2_db21_misdb2a.openterm_terms_code
+    read_type: table
+    transformation_id: ibmdb2_term_code
+
+  - source_id: ibmdb2_vendor_customer
+    table: bronze_dev01.db2_db21_misdb2a.apvcvncu_vendorcustomer
+    read_type: table
+    transformation_id: ibmdb2_vendor_customer
+
+  - source_id: ibmdb2_open_item
+    table: bronze_dev01.db2_db21_misdb2a.aritopen_open_item
+    read_type: table
+    transformation_id: ibmdb2_open_item
+
+  - source_id: ibmdb2_opencurr_currency
+    table: bronze_dev01.db2_db21_misdb2a.opencurr_currency
+    read_type: table
+    transformation_id: ibmdb2_opencurr_currency
+
+  #No access
+  - source_id: ibmdb2_cop_cross_reference
+    #table: bronze_dev01.spoadm_dnacollabration_p2c.dim_arcixrfc_copc_cross_ref
+    table: sandbox.spoadm_dnacollabration_p2c.dim_arcixrfc_copc_cross_ref
+    read_type: table
+    transformation_id: ibmdb2_cop_cross_reference
+
+
+  - source_id: ibmdb2_copc_profit_center
+    table: bronze_dev01.db2_db21_misdb2a.arcicopc_profit_center
+    read_type: table
+    transformation_id: ibmdb2_copc_profit_center
+
+
+  - source_id: ibmdb2_credit_dist_list
+    table: bronze_dev01.db2_db21_misdb2a.arcidist_credit_dist_list
+    read_type: table
+    #transformation_id: ibmdb2_credit_dist_list
+
+
+  - source_id: ibmdb2_comd_group
+    table: bronze_dev01.db2_db21_misdb2a.arcicmdg_comd_group
+    read_type: table
+    transformation_id: ibmdb2_comd_group
+
+
+  - source_id: ibmdb2_corp_segment
+    table: bronze_dev01.db2_db21_misdb2a.arcicseg_corp_segment
+    read_type: table
+    transformation_id: ibmdb2_corp_segment
+
+  # No access
+  # - source_id: ibmdb2_state_code_cust
+  #   table: silver_dev01.insightops.state_code_cust_ibmdb2
+  #   read_type: table
+  #   #transformation_id: ibmdb2_status_code_cust
+
+  - source_id: ibmdb2_currencytable
+    #table: bronze_dev01.saps4_ps1_r4sadditionaltables.tcurr
+    table: bronze_ingestion_dev01.saps4_ds1_r4sadditionaltables.tcurr
+    read_type: table
+    transformation_id: ibmdb2_currencytable
+
+
+  - source_id: ibmdb2_bs_emea_billing_entities
+    # table: bronze_dev01.spoadm_dnacollabration_p2c.dim_gbsp2c_emea_bill_entities
+    table: sandbox.spoadm_dnacollabration_p2c.dim_gbsp2c_emea_bill_entities
+    read_type: table
+    transformation_id: ibmdb2_bs_emea_billing_entities
+
+  # No access
+  # - source_id: ibmdb2_sales_orders_invoice_ibmdb2_table_name
+  #   table: silver_dev01.insightops.sales_orders_invoice_ibmdb2
+  #   read_type: table
+  #   #transformation_id: ibmdb2_sales_orders_invoice_ibmdb2_table_name
+
+
+
+
+transformations:
+  - id: ibmdb2_inv_ord_details
+    #columns_to_snake_case: true
+    columns_to_select: ["INOR_ID", INOR_COPC_ID, INOR_TC_TERMS_CODE, 
+      INOR_SOLDTO, INOR_CURR_ID, INOR_ORIG_ORDER_NUMBER, 
+      INOR_SHIP_DATE, INOR_ORDER_DATE, INOR_TOT_EXTENDED_AMT]
+  
+  - id: ibmdb2_invoice_details
+    columns_expressions:
+      INVC_INVOICE_DATE: cast(cast(INVC_INVOICE_DATE as timestamp) as date)
+    #columns_to_snake_case: true
+    columns_to_select: ["INVC_INOR_ID",
+      INVC_INVOICE_NBR, INVC_INVOICE_DATE]
+  
+  - id: ibmdb2_profit_center
+    columns_to_select: ["COPC_ID", "COPC_CODE",
+      COPC_NAME]
+    columns_expressions:
+      COPC_CODE_int: "cast(COPC_CODE as int)"
+    custom_functions: 
+      - name: "use_cases.custom_transformations.p2c_tx.with_col_lit"
+        kwargs:
+          col_name: "mikescolumn"
+          lit_value: "mikesvalue"
+
+
+
+  - id: ibmdb2_term_code
+    columns_to_select: ["TERM_CODE",
+      TERM_DESC]
+
+  - id: ibmdb2_vendor_customer
+    columns_to_select: ["VNCU_VENDOR_NBR",
+      VNCU_NAME, VNCU_UPDATE_USERID]
+
+  - id: ibmdb2_opencurr_currency
+    columns_expressions:
+      CURR_CODE: "cast(CURR_CODE as string)"
+    columns_to_select: ["CURR_ID",
+      CURR_CODE]
+
+  - id: ibmdb2_open_item
+    columns_to_select: ["OI_ORIG_ORDER",
+      OI_TYPE, OI_ITEM_FROM]
+
+  - id: ibmdb2_cop_cross_reference
+    columns_to_select: [XRFC_COMPANY, XRFC_COPC]
+    columns_expressions:
+      XRFC_COPC: "cast(XRFC_COPC as int)"
+      XRFC_COMPANY: "cast(XRFC_COMPANY as int)"
+    drop_duplicates:
+      - column: XRFC_COMPANY
+
+  - id: ibmdb2_credit_dist_list
+    columns_to_select: [CD_COPC,
+      CD_INTL_CREDIT_MGR]
+
+  - id: ibmdb2_comd_group
+    columns_to_select: ["CMDG_COMD_GRP_CD", "CMDG_CORP_SEGMENT_CD"]
+
+  - id: ibmdb2_copc_profit_center
+    columns_to_select: [PC_COPC, PC_GRP_COMMODITY]
+    columns_expressions:
+      PC_COPC: "cast(PC_COPC as int)"
+
+  - id: ibmdb2_corp_segment
+    columns_to_select: [CSEG_SEGMENT_CD,
+      CSEG_DESC]
+
+  - id: ibmdb2_bs_emea_billing_entities
+    columns_to_select: [LOCATION_CODE,
+      COUNTRY]
+    # columns_expressions:
+    #   LOCATION_CODE: "cast(LOCATION_CODE as int)"
+  - id: ibmdb2_currencytable
+    custom_functions: 
+    - name: "use_cases.custom_transformations.p2c_tx.currency_convert_from_source_currency_to_target_currency_fun"
+      kwargs:
+        target_currency_code_column: "USD"
+
+
+  - id: ibmdb2_joined
+    columns_expressions:
+      shipment_date: cast(cast(INOR_SHIP_DATE as timestamp) as date)
+      order_date: cast(cast(INOR_ORDER_DATE as timestamp) as date)
+      sold_to_customer_no: cast(INOR_SOLDTO as int)
+      # invoice_number: cast(invoice_number as int)
+      #total_invoice_amount_usd: cast(INOR_TOT_EXTENDED_AMT as double)
+      invoice_date: INVC_INVOICE_DATE
+      invoice_due_date: "cast('' as date)"
+      source_system: "'ibmdb2'"
+      region: >-
+        CASE 
+          WHEN CD_INTL_CREDIT_MGR = 'NAM' THEN 'NA'
+          WHEN CD_INTL_CREDIT_MGR = 'EME' THEN 'EMEA'
+          WHEN LOCATION_CODE = 'AMER' THEN 'AMER'
+          ELSE 'Other'
+        END
+      __inserted_on: current_date()
+      __inserted_timestamp: current_timestamp()
+      gbs_group: >-
+        CASE 
+          WHEN LOCATION_CODE = COPC_CODE_int THEN 'Y'
+          ELSE 'N'
+        END
+      total_invoice_amount_usd: >-
+        CASE 
+          WHEN CURR_CODE = 'USD' THEN cast(INOR_TOT_EXTENDED_AMT as double)
+          WHEN date_converted IS NULL THEN cast(INOR_TOT_EXTENDED_AMT as double)
+          ELSE cast(INOR_TOT_EXTENDED_AMT as double) * cast(exchange_rate as double)
+        END
+    columns_mapping:
+      VNCU_NAME: sold_to_customer_name
+      INVC_INVOICE_NBR: invoice_number
+      TERM_CODE: payment_term_code
+      TERM_DESC: payment_term_description
+      COPC_CODE: entity_document_company_code
+      COPC_NAME: entity_document_company_name
+      VNCU_UPDATE_USERID: user_id
+      CURR_CODE: currency_code
+      CSEG_DESC: segment
+      #country: SC_COUNTRY_NAME # from missing table
+      OI_TYPE: document_type
+    columns_to_select:
+      - shipment_date 
+      - order_date
+      - sold_to_customer_no
+      - sold_to_customer_name
+      - invoice_number
+      - total_invoice_amount_usd
+      - invoice_date
+      - payment_term_code
+      - payment_term_description
+      - entity_document_company_code
+      - entity_document_company_name
+      - invoice_due_date
+      - user_id
+      - source_system
+      - currency_code
+      - segment
+      - region
+      #- country #missing
+      - document_type
+      - gbs_group
+      - exchange_rate
+      - __inserted_on
+      - __inserted_timestamp
+
+
+
+combine:
+  - combine_id: combine_1
+    joins: 
+      join_id: base_join
+      source_ids:
+        - source_id: ibmdb2_inv_ord_details
+          alias: iod
+          join_order: 1
+        - source_id: ibmdb2_invoice_details
+          alias: id
+          join_order: 2
+          join_type : inner
+        - source_id: ibmdb2_profit_center
+          alias: pc
+          join_order: 3
+          join_type : inner
+        - source_id: ibmdb2_term_code
+          alias: tc
+          join_order: 4
+          join_type : inner
+        - source_id: ibmdb2_vendor_customer
+          alias: vc
+          join_order: 5
+          join_type : left
+        - source_id: ibmdb2_opencurr_currency
+          alias: oc
+          join_order: 6
+          join_type : left
+        - source_id: ibmdb2_open_item
+          alias: oi
+          join_order: 7
+          join_type : left
+        - source_id: ibmdb2_cop_cross_reference
+          alias: ccr
+          join_order: 8
+          join_type : left
+        - source_id: ibmdb2_copc_profit_center
+          alias: cpc
+          join_order: 9
+          join_type : left
+        - source_id: ibmdb2_credit_dist_list
+          alias: cdl
+          join_order: 10
+          join_type : left
+        - source_id: ibmdb2_comd_group
+          alias: cg
+          join_order: 11
+          join_type : left
+        - source_id: ibmdb2_corp_segment
+          alias: cs
+          join_order: 12
+          join_type : left
+        - source_id: ibmdb2_bs_emea_billing_entities
+          alias: bebe
+          join_order: 13
+          join_type : left
+        - source_id: ibmdb2_currencytable
+          alias: ct
+          join_order: 14
+          join_type : left
+      join_conditions:
+        - left: iod
+          right: id
+          condition: iod.INOR_ID = id.INVC_INOR_ID
+        - left: iod
+          right: pc
+          condition: iod.INOR_COPC_ID = pc.COPC_ID
+        - left: iod
+          right: tc
+          condition: iod.INOR_TC_TERMS_CODE = tc.TERM_CODE
+        - left: iod
+          right: vc
+          condition: iod.INOR_SOLDTO = vc.VNCU_VENDOR_NBR 
+        - left: iod
+          right: oc
+          condition: iod.INOR_CURR_ID = oc.CURR_ID
+        - left: iod
+          right: oi
+          condition: iod.INOR_ORIG_ORDER_NUMBER = oi.OI_ORIG_ORDER
+        - left: pc
+          right: ccr
+          condition: pc.COPC_CODE_int = ccr.XRFC_COMPANY
+        - left: ccr
+          right: cpc
+          condition: ccr.XRFC_COPC = cpc.PC_COPC
+        - left: cpc
+          right: cdl
+          condition: cpc.PC_COPC = cdl.CD_COPC
+        - left: cpc
+          right: cg
+          condition: cpc.PC_GRP_COMMODITY = cg.CMDG_COMD_GRP_CD
+        - left: cg
+          right: cs
+          condition: cg.CMDG_CORP_SEGMENT_CD = cs.CSEG_SEGMENT_CD
+        - left: pc
+          right: bebe
+          condition: pc.COPC_CODE_int = bebe.LOCATION_CODE
+        - left: id
+          right: ct
+          condition: id.INVC_INVOICE_DATE = ct.date_converted and oc.CURR_CODE = ct.FCURR
+
+
+      select_columns:
+        iod: ["INOR_ID", "INOR_COPC_ID", "INOR_TC_TERMS_CODE", "INOR_SOLDTO", "INOR_CURR_ID", "INOR_ORIG_ORDER_NUMBER", 
+          INOR_SHIP_DATE, INOR_ORDER_DATE, INOR_TOT_EXTENDED_AMT]
+        id: ["INVC_INOR_ID",
+          INVC_INVOICE_NBR, INVC_INVOICE_DATE]
+        pc: ["COPC_ID", "COPC_CODE", "COPC_CODE_int",
+          COPC_NAME]
+        tc: ["TERM_CODE",
+          TERM_DESC]
+        vc: ["VNCU_VENDOR_NBR",
+          VNCU_NAME, VNCU_UPDATE_USERID]
+        oc: ["CURR_ID",
+          CURR_CODE]
+        oi: ["OI_ORIG_ORDER",
+          OI_TYPE, OI_ITEM_FROM]
+        ccr: ["XRFC_COMPANY", "XRFC_COPC"]
+        cdl: ["CD_COPC",
+          CD_INTL_CREDIT_MGR]
+        cg: ["CMDG_COMD_GRP_CD", "CMDG_CORP_SEGMENT_CD"]
+        cpc: ["PC_COPC", "PC_GRP_COMMODITY"]
+        cs: ["CSEG_SEGMENT_CD",
+          CSEG_DESC]
+        bebe: ["LOCATION_CODE",
+          COUNTRY]
+        ct: ["date_converted", "FCURR", "TCURR", "exchange_rate"]
+
+      alias: ibmdb2_joined
+
+
+
+targets:
+  - table_id: sales_order_invoice_ibmdb2
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.sales_order_invoice_ibmdb2
+    #schema_file: use_cases/h2r/h2r_silver_head_count_poc_schema.json
+    write_type: table
+    write_mode: append
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

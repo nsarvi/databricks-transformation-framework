@@ -6,15 +6,13 @@ transformations:
       - name: "region"
         type: "string"
         value: "''"
-      - name: "state_with_na"
+      - name: "state"
         type: "string"
         value: "'NA'"
     # Column expressions to be applied
     column_expressions:
       - column: "*"
         expression: "*"
-      - column: "state_with_na"   # Existing column to be replaced with new expression
-        expression: "concat('state_', state)"
       - column: "total_price"
         expression: "quantity * price"
       - column: "discounted_price"

@@ -15,7 +15,7 @@ class AdmBaseDataTransformer(BaseIntegration):
         
         transformation_config = self.transformation_lookup.get(transformation_id)
         if transformation_config is None or "id" not in transformation_config or not transformation_config["id"]:
-            logger.error(f"Transformation '{transformation_id}' not found in the YAML configuration.")
+            self.logger.error(f"Transformation '{transformation_id}' not found in the YAML configuration.")
             raise ValueError(f"Transformation '{transformation_id}' not found in the YAML configuration.")
         
         # Check if both DataFrame and SQL file are provided
@@ -38,44 +38,63 @@ class AdmBaseDataTransformer(BaseIntegration):
                 raise ValueError("No DataFrame provided and no SQL file specified in the transformation configuration.")
 
 
-        
-        # Apply extra columns 
-        if YC.ADDITIONAL_COLUMNS_KEY in transformation_config:
-            column_mapping = transformation_config[YC.ADDITIONAL_COLUMNS_KEY]
-            df = df.transform(AdmBaseDataTransformer.add_additional_columns(column_mapping))
-        
-        # Apply column expressions
-        if YC.COLUMN_EXPRESSIONS_KEY in transformation_config:
-            column_expressions = transformation_config[YC.COLUMN_EXPRESSIONS_KEY]
-            df = df.transform(AdmBaseDataTransformer.apply_column_expressions(column_expressions))    
+        for tx_k, tx_v in transformation_config.items():
+            # Apply extra columns 
+            if tx_k == YC.ADDITIONAL_COLUMNS_KEY:
+                column_mapping = tx_v
+                df = df.transform(AdmBaseDataTransformer.add_additional_columns(column_mapping))
+            
+            # Apply column expressions
+            if tx_k == YC.COLUMN_EXPRESSIONS_KEY:
+                column_expressions = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_column_expressions(column_expressions))    
 
-        # Apply concatenations
-        if YC.COLUMN_CONCATENATIONS_KEY in transformation_config:
-            concatenations = transformation_config[YC.COLUMN_CONCATENATIONS_KEY]
-            df = df.transform(AdmBaseDataTransformer.apply_column_concatenations(concatenations))
-        
-        # Apply column renames
-        if YC.COLUMN_RENAME_KEY in transformation_config:
-            column_renames = transformation_config[YC.COLUMN_RENAME_KEY]
-            df = df.transform(AdmBaseDataTransformer.apply_column_renames(column_renames))
-        
-        # Drop duplicates
-        if YC.DROP_DUPLICATES_KEY in transformation_config:
-            drop_duplicate_columns = transformation_config[YC.DROP_DUPLICATES_KEY]
-            df = df.transform(AdmBaseDataTransformer.apply_drop_duplicates(drop_duplicate_columns))
+            # Apply concatenations
+            if tx_k == YC.COLUMN_CONCATENATIONS_KEY:
+                concatenations = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_column_concatenations(concatenations))
             
-        # Apply filters
-        if YC.FILTERS_KEY in transformation_config:
-            conditions=transformation_config[YC.FILTERS_KEY]
-            df = df.transform(AdmBaseDataTransformer.apply_filters(conditions))
+            # Apply column renames
+            if tx_k == YC.COLUMN_RENAME_KEY:
+                column_renames = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_column_renames(column_renames))
             
-        # Apply distinct columns
-        if YC.DISTINCT_COLUMNS_KEY in transformation_config:
-            distinct_columns = transformation_config[YC.DISTINCT_COLUMNS_KEY]
-            df = df.transform(AdmBaseDataTransformer.apply_distinct_columns(distinct_columns))
+            # Drop duplicates
+            if tx_k == YC.DROP_DUPLICATES_KEY:
+                drop_duplicate_columns = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_drop_duplicates(drop_duplicate_columns))
+                
+            # Apply filters
+            if tx_k == YC.FILTERS_KEY:
+                conditions = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_filters(conditions))
+                
+            # Apply distinct columns
+            if tx_k == YC.DISTINCT_COLUMNS_KEY:
+                distinct_columns =tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_distinct_columns(distinct_columns))
+
+            if tx_k == YC.COLUMNS_MAPPING_KEY:
+                columns_mapping = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_columns_mapping(columns_mapping))
         
+            if tx_k == YC.COLUMNS_EXPRESSIONS_KEY:
+                columns_expressions = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_columns_expressions(columns_expressions)) 
+            
+            if tx_k == YC.COLUMNS_TO_SNAKE_CASE_KEY:
+                columns_to_snake_case = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_columns_to_snake_case(columns_to_snake_case))
     
+            if tx_k == YC.COLUMNS_TO_SELECT:
+                cols = tx_v
+                df = df.transform(AdmBaseDataTransformer.apply_columns_to_select(cols))
             
+            if tx_k == YC.CUSTOM_FUNCTIONS_KEY:
+                custom_functions = tx_v  # List of custom functions
+                for custom_function_params in custom_functions:
+                    df = df.transform(AdmBaseDataTransformer.apply_custom_function(custom_function_params))
+        
         return df
 
     

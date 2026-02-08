@@ -1,0 +1,119 @@
+sources:
+  - source_id: time_to_fill
+    table: sandbox.h2r_dbx_poc.time_to_fill
+    read_type: table
+    transformation_id: time_to_fill
+  - source_id: req_report
+    table: sandbox.h2r_dbx_poc.global_req_report
+    read_type: table
+    transformation_id: req_report
+
+
+transformations:
+  - id: time_to_fill
+    columns_to_snake_case: true
+    columns_mapping:
+      hiring_manager: hiring_manager_name
+      recruiter: recruiter_name
+      Organization_Level_2: organizational_level_2
+      Organization_Level_3: organizational_level_3
+      Business_Identifier: business_id
+    columns_to_select:
+      - requisition_id
+      - job_type
+      - pay_grade_band
+      - hiring_manager_name
+      - recruiter_name
+      - organizational_level_2
+      - organizational_level_3
+      - business_id
+  - id: req_report
+    columns_mapping:
+      Requisition_ID: requisition_id
+      DIVISION_: division
+      Reason_for_Hire_old: old_reason_for_hire
+      Reason_for_Hire_EC: ec_reason_for_hire
+      Justification_for_Addition_Replacement: additional_replacement_justification
+      College_Relations_Requisition: college_relations_requisition
+      No_of_Positions_FTE: fte_number_of_positions
+      Positions_Remaining: remaining_positions
+      Date_Approved: approved_date
+      Date_Created: created_date
+      Date_Open: open_date
+      Days_Open: number_of_days_open
+      Days_On_Hold: number_of_days_on_hold
+      Reason_for_Open_Req_Greater_Than_60_Days: more_than_60_days_open_requisition_reason
+      Reason_for_Open_Req_Greater_than_60_days_Comment: more_than_60_days_open_requisition_reason_comment_text
+      Date_Closed: closed_date
+      Date_Cancelled: canceled_date
+      Candidate_Source: candidate_source
+      Was_Comp_a_Challenge_in_this_search: compensation_challege_in_search_indicator
+      Did_we_Hire_into_an_Alternative_Location: alternative_location_hire_indicator
+      Did_we_have_to_Hire_Remote: remote_hire_indicator
+      Search_Firm_Name: search_firm_name
+      Agency_Fee_Percentage: agency_fee_percentage
+      Agency_on_a_Retainer: agengy_retainer_indicator
+      Group_Code_Legal_entity: legal_entity_group_code
+      Location_Code: location_code
+      Region: region_name
+      Location_Country: location_country
+      Location_City: location_city
+      Location_State: location_state
+      Manager_Employee_ID: manager_employee_id
+      Global_Manager_ID_EC: ec_global_manager_id 
+    columns_to_snake_case: true
+  - id: ffjt
+    columns_expressions:
+      approved_date: "to_date(approved_date, 'M/d/yyyy H:mm')"
+      created_date: "to_date(created_date, 'MM/d/yyyy')"
+      open_date: "to_date(open_date, 'M/d/yyyy H:mm')"
+      closed_date: "to_date(closed_date, 'M/d/yyyy H:mm')"
+      canceled_date: "to_date(canceled_date, 'M/d/yyyy H:mm')"
+      
+      job_type: "case when job_type = 'Full-time' then 'FT' else 'CT' end"
+
+
+combine:
+  - combine_id: ttf_rr
+    joins: 
+      join_id: ttf_rr
+      source_ids:
+        - source_id: time_to_fill
+          alias: ttf
+          join_order: 1
+        - source_id: req_report
+          alias: rr
+          join_order: 2
+          join_type : inner
+      join_conditions:
+        - left: ttf
+          right: rr
+          condition: ttf.requisition_id = rr.requisition_id
+      select_columns: 
+        ttf: [requisition_id, job_type, pay_grade_band, 
+              hiring_manager_name, recruiter_name, organizational_level_2, 
+              organizational_level_3, business_id]
+        rr: [requisition_id, division, old_reason_for_hire, ec_reason_for_hire, 
+              additional_replacement_justification, college_relations_requisition, 
+              fte_number_of_positions, remaining_positions, approved_date, 
+              created_date, open_date, number_of_days_open, number_of_days_on_hold, 
+              more_than_60_days_open_requisition_reason, 
+              more_than_60_days_open_requisition_reason_comment_text, 
+              closed_date, canceled_date, candidate_source, 
+              compensation_challege_in_search_indicator, alternative_location_hire_indicator,
+              remote_hire_indicator, search_firm_name, agency_fee_percentage, 
+              agengy_retainer_indicator, legal_entity_group_code, location_code, 
+              region_name, location_country, location_city, location_state, 
+              manager_employee_id, ec_global_manager_id]
+      alias: emp_payroll
+
+targets:
+  - table_id: silver_globlal_hr_request_poc
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.silver_globlal_hr_request_poc
+    #schema_file: use_cases/h2r/h2r_silver_head_count_poc_schema.json
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

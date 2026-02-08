@@ -1,0 +1,15 @@
+
+jdexeeu_order_detail:
+      table: bronze_dev01.jdexeeu_jdeproduction_proddta.f4211
+ 
+
+jdexeeu_customer_ledger:
+      table: bronze_dev01.jdexeeu_jdeproduction_proddta.f03b11
+      read_type: table
+
+
+  # No access
+  # - source_id: sales_orders_invoice_jdeeu
+  #   table: silver_dev01.insightops.sales_orders_invoice_jdeeu
+  #   read_type: table
+  #   transformation_id: proddta

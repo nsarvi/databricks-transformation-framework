@@ -1,0 +1,29 @@
+sources:
+  - source_id: time_to_fill
+    table: sandbox.h2r_dbx_poc.time_to_fill
+    read_type: table
+    transformation_id: time_to_fill
+
+transformations:
+  - id: time_to_fill
+    columns_mapping:
+      Current_HR_status: current_status  
+    columns_to_snake_case: true
+    columns_to_select:
+      - requisition_id
+      - job_title
+      - candidate_type
+      - current_status
+      - candidate_ref_num
+      - employment_type
+
+
+targets:
+  - table_id: global_hr_request_poc
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.global_hr_request_poc
+    write_type: table
+    write_mode: overwrite
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

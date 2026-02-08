@@ -1,0 +1,108 @@
+import sys
+from pathlib import Path
+
+src_path = (Path(__file__).resolve().parent.parent.parent / "src").as_posix()
+sys.path.append(src_path)
+
+import sys
+from pathlib import Path
+import unittest
+from datetime import datetime
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
+from typing import Optional
+from adm.integration.adm_data_transformer import AdmDataTransformer
+from adm.integration.adm_table_writer import AdmTableWriter
+from adm.integration.adm_table_reader import AdmTableReader
+import logging
+
+class TestAdmDataTransformer(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(self):
+        """Creates a Spark session that will be used across all tests."""
+        self.spark = AdmTableReader._get_spark()
+
+    def setUp(self):
+         # Enable the logger to debug level
+        logging.basicConfig(level=logging.DEBUG)
+        logger = logging.getLogger('adm.integration')
+        logger.setLevel(logging.DEBUG)
+        self.table_name_customer_stream = "sandbox.integration_framework.customer_mapics_stream_1"
+        self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_customer_stream}")
+       # Create test data for adm_customer_mapics table
+        customer_schema = StructType([
+            StructField("customer_id", StringType(), True),
+            StructField("customer_name", StringType(), True),
+            StructField("customer_address", StringType(), True),
+            StructField("customer_phone_mapics", StringType(), True),
+            StructField("customer_email_mapics", StringType(), True),
+            StructField("customer_status_mapics", StringType(), True),
+            StructField("customer_since_mapics", TimestampType(), True),
+            StructField("customer_type_mapics", StringType(), True),
+            StructField("customer_region", StringType(), True),
+            StructField("customer_loyalty_points", IntegerType(), True),
+            StructField("customer_preferred_store", StringType(), True)
+        ])
+        customer_data = [
+            ("cust_1", "John Doe", "123 Elm St", "555-1234", "john.doe@example.com", "active", datetime(2020, 1, 1), "regular", "region_1", 100, "store_1"),
+            ("cust_2", "Jane Doe", "456 Oak St", "555-5678", "jane.doe@example.com", "inactive", datetime(2019, 5, 15), "premium", "region_2", 200, "store_2"),
+            ("cust_3", "Alice Smith", "789 Pine St", "555-8765", "alice.smith@example.com", "active", datetime(2021, 3, 10), "regular", "region_3", 150, "store_3"),
+            ("cust_4", "Bob Johnson", "321 Maple St", "555-4321", "bob.johnson@example.com", "active", datetime(2018, 7, 22), "regular", "region_1", 120, "store_1"),
+            ("cust_5", "Carol White", "654 Birch St", "555-6543", "carol.white@example.com", "inactive", datetime(2020, 11, 5), "premium", "region_2", 180, "store_2"),
+            ("cust_6", "David Brown", "987 Cedar St", "555-9876", "david.brown@example.com", "active", datetime(2017, 2, 14), "regular", "region_3", 130, "store_3"),
+            ("cust_7", "Eva Green", "159 Spruce St", "555-1597", "eva.green@example.com", "active", datetime(2021, 8, 30), "premium", "region_1", 170, "store_1"),
+            ("cust_8", "Frank Black", "753 Willow St", "555-7539", "frank.black@example.com", "inactive", datetime(2019, 12, 25), "regular", "region_2", 110, "store_2"),
+            ("cust_9", "Grace Blue", "951 Fir St", "555-9512", "grace.blue@example.com", "active", datetime(2020, 6, 18), "premium", "region_3", 160, "store_3"),
+            ("cust_10", "Henry Yellow", "852 Redwood St", "555-8524", "henry.yellow@example.com", "active", datetime(2018, 9, 9), "regular", "region_1", 140, "store_1")
+        ]
+        self.customer_df = self.spark.createDataFrame(customer_data, customer_schema)
+
+        # Write the DataFrame to the table using AdmTableWriter
+        writer = AdmTableWriter("tests/configs/sources/target_tables.yaml")
+        writer.write_table("source_customer_mapics_st",self.customer_df )
+
+        
+    @classmethod
+    def tearDownClass(cls):
+        """Stops the Spark session after all tests."""
+      
+
+    def test_stream_table_reads(self):
+        """Tests reading from the source tables and applying transformations using streaming APIs."""
+        adm_table_reader = AdmTableReader("tests/configs/sources/read_stream_tables_config.yaml")
+        
+        # Read the streaming source table
+        result_df = adm_table_reader.read_source_table("source_stream_tab_1")
+
+        # Write the streaming DataFrame to an in-memory sink for testing
+        query = result_df.writeStream \
+            .format("memory") \
+            .queryName("test_stream_table") \
+            .outputMode("append") \
+            .start()
+
+        # Wait for the streaming query to process the data
+        query.processAllAvailable()
+
+        # Read the data back from the in-memory table
+        result_df_from_memory = self.spark.sql("SELECT * FROM test_stream_table")
+
+        # Assertions on the additional column values
+        # Ensures row count is unchanged
+        self.assertEqual(result_df_from_memory.count(), self.customer_df.count())
+        # Check if additional column is added
+        self.assertIn("source_system", result_df_from_memory.columns)
+        # Get the first row of the DataFrame
+        first_row: Optional[Row] = result_df_from_memory.select("processed_date", "source_system").first()
+
+        source_sys_value = first_row['source_system']  # type: ignore
+        self.assertEqual(source_sys_value, "MAPICS")
+
+        # Stop the streaming query
+        query.stop()
+        
+
+if __name__ == "__main__":
+    unittest.main()

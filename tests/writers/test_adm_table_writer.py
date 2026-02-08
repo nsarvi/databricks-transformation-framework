@@ -25,9 +25,9 @@ class TestAdmTableWriter(unittest.TestCase):
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger('adm.integration.adm_table_writer')
         self.logger.setLevel(logging.DEBUG)
-        self.table_name_append="nsarvi.adm.customer_append"
-        self.table_name_overwrite="nsarvi.adm.customer_overwrite"
-        self.table_name_cluster_by="nsarvi.adm.customer_cluster_by"
+        self.table_name_append="sandbox.integration_framework.customer_append"
+        self.table_name_overwrite="sandbox.integration_framework.customer_overwrite"
+        self.table_name_cluster_by="sandbox.integration_framework.customer_cluster_by"
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_append}")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_overwrite}")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_cluster_by}")

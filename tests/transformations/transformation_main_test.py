@@ -5,6 +5,7 @@ import random
 src_path = (Path(__file__).resolve().parent.parent.parent / "src").as_posix()
 sys.path.append(src_path)
 
+from typing import Optional
 import unittest
 from datetime import datetime
 from pyspark.sql import SparkSession
@@ -18,7 +19,7 @@ class TestAdmDataTransformerMain(unittest.TestCase):
     def setUpClass(cls):
         """Creates a Spark session that will be used across all tests."""
         cls.spark = AdmBaseDataTransformer._get_spark()
-
+        
     def setUp(self):
         """Creates a reusable DataFrame with 25 rows, including 5 duplicate rows."""
         schema = StructType([

@@ -1,8 +1,13 @@
+from logging import config
 import sys
 from pathlib import Path
 
 src_path = (Path(__file__).resolve().parent.parent.parent / "src").as_posix()
 sys.path.append(src_path)
+config_file_path = (Path(__file__).resolve().parent.parent.parent / "tests/configs/sources").as_posix()
+sys.path.append(config_file_path)
+env_file_path = (Path(__file__).resolve().parent.parent.parent / "tests/configs/env").as_posix()
+sys.path.append(env_file_path)
 
 import sys
 from pathlib import Path
@@ -11,6 +16,7 @@ from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
+from typing import Optional
 from adm.integration.adm_data_transformer import AdmDataTransformer
 from adm.integration.adm_table_writer import AdmTableWriter
 from adm.integration.adm_table_reader import AdmTableReader
@@ -92,7 +98,7 @@ class TestAdmDataTransformer(unittest.TestCase):
     def tearDownClass(cls):
         """Stops the Spark session after all tests."""
       
-
+    
     def test_table_reads(self):
         """Tests reading from the source tables and applying transformations."""
         adm_table_reader = AdmTableReader("tests/configs/sources/read_tables_config.yaml")
@@ -111,7 +117,45 @@ class TestAdmDataTransformer(unittest.TestCase):
 
         source_sys_value = first_row['source_system']  # type: ignore
         self.assertEqual(source_sys_value, "MAPICS")
+    
+    def test_table_reads_using_environments(self):
+        """Tests reading from the source tables and applying transformations using environments."""
+        adm_table_reader = AdmTableReader("tests/configs/sources/read_env_specific_tables_config.yaml", "tests/configs/env/dev-env-config.yaml")
         
+        result_df = adm_table_reader.read_source_table("source_1")
+
+
+        print(result_df.show())
+        # assertions on the additional column values
+        # Ensures row count is unchanged
+        self.assertEqual(result_df.count(), self.customer_df.count()) 
+        # Check if additional column is added
+        self.assertIn("source_system", result_df.columns)  
+                # Get the first row of the DataFrame
+        first_row:Optional[Row] = result_df.select("processed_date","source_system").first()
+
+        source_sys_value = first_row['source_system']  # type: ignore
+        self.assertEqual(source_sys_value, "MAPICS")
+
+    def test_table_reads_using_environment_file_from_root(self):
+        """Tests reading from the source tables and applying transformations using environments."""
+        
+        adm_table_reader = AdmTableReader("read_env_specific_tables_config.yaml", "dev-env-config.yaml")
+        
+        result_df = adm_table_reader.read_source_table("source_1")
+
+
+        print(result_df.show())
+        # assertions on the additional column values
+        # Ensures row count is unchanged
+        self.assertEqual(result_df.count(), self.customer_df.count()) 
+        # Check if additional column is added
+        self.assertIn("source_system", result_df.columns)  
+                # Get the first row of the DataFrame
+        first_row:Optional[Row] = result_df.select("processed_date","source_system").first()
+
+        source_sys_value = first_row['source_system']  # type: ignore
+        self.assertEqual(source_sys_value, "MAPICS")
 
 if __name__ == "__main__":
     unittest.main()

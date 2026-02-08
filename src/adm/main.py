@@ -4,7 +4,7 @@ def get_taxis(spark: SparkSession) -> DataFrame:
   return spark.read.table("samples.nyctaxi.trips")
 
 def get_store_1(spark: SparkSession) -> DataFrame:
-  return spark.read.table("nsarvi.adm.adm_store_1")
+  return spark.read.table("sandbox.integration_framework.adm_store_1")
 
 
 # Create a new Databricks Connect session. If this fails,

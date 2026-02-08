@@ -1,0 +1,9 @@
+
+ibm:
+  table: bronze_dev01.jdexeeu_jdeproduction_proddta.f4211
+  read_type: table
+
+jdexeeu_customer_ledger:
+  table: bronze_dev01.jdexeeu_jdeproduction_proddta.f03b11
+  read_type: table
+

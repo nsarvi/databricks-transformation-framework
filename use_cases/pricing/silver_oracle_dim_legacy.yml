@@ -1,0 +1,242 @@
+sources:
+  - source_id: "mtl_system_items_b_source"
+    subquery: |
+      SELECT DISTINCT
+        inventory_item_id,
+        organization_id,
+        segment1,
+        primary_uom_code,
+        description,
+        shelf_life_days,
+        creation_date,
+        RANK() OVER (PARTITION BY segment1 ORDER BY creation_date DESC) AS rnk
+      FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_system_items_b
+      WHERE organization_id = 102
+        AND description NOT LIKE '%DO NOT USE%'
+
+  - source_id: "item_p_source"
+    subquery: |
+      SELECT
+        a.inventory_item_id,
+        a.organization_id,
+        a.segment1,
+        a.base_prod,
+        b.base_prod AS child_base_prod
+      FROM (
+        SELECT DISTINCT
+          inventory_item_id,
+          organization_id,
+          segment1,
+          primary_uom_code,
+          attribute1,
+          CASE
+            WHEN attribute1 IS NULL THEN segment1
+            ELSE attribute1
+          END AS base_prod,
+          RANK() OVER (PARTITION BY segment1 ORDER BY creation_date DESC) AS rnk
+        FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_system_items_b
+        WHERE organization_id = 102
+          AND description NOT LIKE '%DO NOT USE%'
+      ) a
+      LEFT JOIN (
+        SELECT DISTINCT
+          inventory_item_id,
+          organization_id,
+          segment1,
+          CASE
+            WHEN attribute1 IS NULL THEN segment1
+            ELSE attribute1
+          END AS base_prod,
+          RANK() OVER (PARTITION BY segment1 ORDER BY creation_date DESC) AS rnk
+        FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_system_items_b
+        WHERE organization_id = 102
+          AND description NOT LIKE '%DO NOT USE%'
+      ) b
+      ON a.base_prod = b.segment1
+      WHERE a.rnk = 1
+        AND b.rnk = 1
+
+  - source_id: "mtl_item_categories_source"
+    subquery: |
+      SELECT
+        c.inventory_item_id,
+        t.category_set_name,
+        ctl.description AS department_name
+      FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_item_categories c
+      INNER JOIN bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_category_sets_tl t
+        ON c.category_set_id = t.category_set_id
+      INNER JOIN bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_categories_tl ctl
+        ON c.category_id = ctl.category_id
+      WHERE c.organization_id = 102
+
+  - source_id: "brand_source"
+    subquery: |
+      SELECT
+        a.inventory_item_id,
+        cat.category_id AS item_brand_code
+      FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_item_categories a
+      INNER JOIN bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_categories_tl cat
+        ON a.category_id = cat.category_id
+      WHERE a.organization_id = 102
+
+  - source_id: "species_source"
+    subquery: |
+      SELECT
+        a.inventory_item_id,
+        cat.category_id AS parent_species_code,
+        cat.description AS species_1_code
+      FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_item_categories a
+      INNER JOIN bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_categories_tl cat
+        ON a.category_id = cat.category_id
+      WHERE a.organization_id = 102
+
+  - source_id: "gmo_status_source"
+    subquery: |
+      SELECT
+        c.inventory_item_id,
+        ctl.description AS gmo_status
+      FROM bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_item_categories c
+      INNER JOIN bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_categories_tl ctl
+        ON c.category_id = ctl.category_id
+      WHERE c.organization_id = 102
+
+  - source_id: "src_source"
+    subquery: |
+      SELECT
+        c.formula_no,
+        MAX(c.qty) OVER (PARTITION BY c.formula_no) AS qty,
+        c.inputdata,
+        SPLIT(c.inputdata, ',')[0] AS item_sourcing_plant_1,
+        CASE
+          WHEN c.commacount >= 1 THEN SPLIT(c.inputdata, ',')[1]
+          ELSE NULL
+        END AS item_sourcing_plant_2,
+        CASE
+          WHEN c.commacount >= 2 THEN SPLIT(c.inputdata, ',')[2]
+          ELSE NULL
+        END AS item_sourcing_plant_3,
+        CASE
+          WHEN c.commacount >= 3 THEN SPLIT(c.inputdata, ',')[3]
+          ELSE NULL
+        END AS item_sourcing_plant_4,
+        CASE
+          WHEN c.commacount >= 4 THEN SPLIT(c.inputdata, ',')[4]
+          ELSE NULL
+        END AS item_sourcing_plant_5
+        FROM (
+          SELECT
+            b.formula_no,
+            b.qty,
+            CONCAT_WS(',', COLLECT_LIST(b.organization_id)) AS inputdata,
+            SIZE(COLLECT_LIST(b.organization_id)) - 1 AS commacount
+          FROM (
+            SELECT
+              a.formula_no,
+              a.qty,
+              b.organization_id
+            FROM (
+              SELECT DISTINCT
+                a.formula_no,
+                MAX(b.qty) OVER (PARTITION BY a.formula_no) AS qty,
+                b.organization_id
+              FROM gmd.fm_form_mst_b a
+              INNER JOIN gmd.fm_matl_dtl b
+                ON a.formula_id = b.formula_id
+              LEFT OUTER JOIN bronze_ingestion_dev01.ebs_pd01ebs_inv.mtl_system_items_b c
+                ON a.formula_no = c.segment1
+              LEFT OUTER JOIN bronze_ingestion_dev01.ebs_np03ebs_hr.hr_all_organization_units d
+                ON b.organization_id = d.organization_id
+              WHERE a.formula_status = 700
+                AND b.line_type = 1
+            ) a
+          ) b
+          GROUP BY b.formula_no, b.qty
+        ) c
+
+  - source_id: "coc_source"
+    subquery: |
+      SELECT
+        org.organization_id,
+        l.country
+      FROM bronze_ingestion_dev01.ebs_np03ebs_hr.hr_all_organization_units org
+      INNER JOIN bronze_ingestion_dev01.ebs_pd01ebs_hr.hr_locations_all l
+        ON org.location_id = l.location_id
+
+combine:
+  - combine_id: "item_combine"
+    joins:
+      join_id: "item_join"
+      source_ids:
+        - source_id: "mtl_system_items_b_source"
+          alias: "a"
+          join_order: 1
+        - source_id: "item_p_source"
+          alias: "item_p"
+          join_order: 2
+          join_type: "leftouter"
+        - source_id: "mtl_item_categories_source"
+          alias: "dept"
+          join_order: 3
+          join_type: "leftouter"
+        - source_id: "brand_source"
+          alias: "brand"
+          join_order: 4
+          join_type: "leftouter"
+        - source_id: "species_source"
+          alias: "species"
+          join_order: 5
+          join_type: "leftouter"
+        - source_id: "gmo_status_source"
+          alias: "gmo_status"
+          join_order: 6
+          join_type: "leftouter"
+        # - source_id: "src_source"
+        #   alias: "src"
+        #   join_order: 7
+        #   join_type: "leftouter"
+        # - source_id: "coc_source"
+        #   alias: "coc"
+        #   join_order: 8
+        #   join_type: "leftouter"
+      join_conditions:
+        - left: "a"
+          right: "item_p"
+          condition: "a.segment1 = item_p.segment1"
+        - left: "a"
+          right: "dept"
+          condition: "a.inventory_item_id = dept.inventory_item_id"
+        - left: "a"
+          right: "brand"
+          condition: "a.inventory_item_id = brand.inventory_item_id"
+        - left: "a"
+          right: "species"
+          condition: "a.inventory_item_id = species.inventory_item_id"
+        - left: "a"
+          right: "gmo_status"
+          condition: "a.inventory_item_id = gmo_status.inventory_item_id"
+        # - left: "a"
+        #   right: "src"
+        #   condition: "src.formula_no = a.segment1"
+        # - left: "src"
+        #   right: "coc"
+        #   condition: "src.item_sourcing_plant_1 = coc.organization_id"
+      select_columns:
+        a: ["segment1", "inventory_item_id", "organization_id", "primary_uom_code", "description", "shelf_life_days"]
+        item_p: ["inventory_item_id", "organization_id", "segment1", "base_prod", "child_base_prod"]
+        dept: ["inventory_item_id", "category_set_name", "department_name"]
+        brand: ["inventory_item_id", "item_brand_code"]
+        species: ["inventory_item_id", "parent_species_code", "species_1_code"]
+        gmo_status: ["inventory_item_id", "gmo_status"]
+        # src: ["item_sourcing_plant_1", "item_sourcing_plant_2", "item_sourcing_plant_3", "item_sourcing_plant_4", "item_sourcing_plant_5"]
+        # coc: ["country"]
+      alias: "item_combined"
+
+targets:
+  - table_id: "item_combined_table"
+    table: "bronze_ingestion_dev01.ebs_pd01ebs_inv.item_combined"
+    write_type: "table"
+    write_mode: "overwrite"
+    options:
+      mergeSchema: "true"
+    table_properties:
+      delta.feature.allowColumnDefaults: "supported"

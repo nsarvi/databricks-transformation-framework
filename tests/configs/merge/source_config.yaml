@@ -1,6 +1,6 @@
 targets:
   - table_id: "source_customer_mapics"
-    table: "nsarvi.adm.customer_mapics"
+    table: "sandbox.integration_framework.customer_mapics"
     write_type: "table"
     write_mode: "overwrite"
     partition_by: ["customer_region"]  # Clustering and partitioning cannot both be specified
@@ -14,7 +14,7 @@ targets:
       delta.autoOptimize.autoCompact: "true"
 
   - table_id: "source_sales_mapics"
-    table: "nsarvi.adm.sales_mapics"
+    table: "sandbox.integration_framework.sales_mapics"
     write_type: "table"
     write_mode: "overwrite"
     partition_by: ["store_id_mapics"]  # Clustering and partitioning cannot both be specified

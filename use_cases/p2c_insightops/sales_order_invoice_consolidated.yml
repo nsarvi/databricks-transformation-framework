@@ -1,0 +1,98 @@
+sources:
+  - source_id: ibmdb2_sales_order_invoice
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.sales_order_invoice_ibmdb2
+    read_type: table
+    #transformation_id: jdexeeu_sales_order_invoice
+
+  - source_id: jdexeeu_sales_order_invoice
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.sales_order_invoice_jdexeeu
+    read_type: table
+    #transformation_id: jdexeeu_sales_order_invoice
+
+  - source_id: ibmdb2_sales_order_invoice_max
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.sales_order_invoice_ibmdb2
+    read_type: table
+    transformation_id: max_inserted_timestamp
+
+  - source_id: jdexeeu_sales_order_invoice_max
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.sales_order_invoice_jdexeeu
+    read_type: table
+    transformation_id: max_inserted_timestamp
+
+
+# combine:
+#   - combine_id: "combine_sales_order_invoice"
+#     unions:
+#         union_id: "union_sales_order_invoice"
+#         source_ids: ["jdexeeu_sales_order_invoice", 
+#           "ibmdb2_sales_order_invoice"]
+#         allow_missing: true
+
+transformations:
+  - id: max_inserted_timestamp
+    column_expressions:
+      - column: "max_inserted_tsp"
+        expression: "max(__inserted_timestamp)"
+  - id: add_tsp
+    columns_expressions:
+      __inserted_on: current_date()
+      __inserted_timestamp: current_timestamp()
+
+combine:
+  - combine_id: ibm
+    joins: 
+      join_id: ibm
+      source_ids:
+        - source_id: ibmdb2_sales_order_invoice
+          alias: i
+          join_order: 1
+        - source_id: ibmdb2_sales_order_invoice_max
+          alias: m
+          join_order: 2
+          join_type: inner
+      join_conditions:
+        - left: i
+          right: m
+          condition: i.__inserted_timestamp = m.max_inserted_tsp
+      select_columns: 
+        i: [shipment_date, order_date, invoice_number, total_invoice_amount_usd, invoice_date, 
+          payment_term_code, entity_document_company_code, entity_document_company_name, user_id, 
+          payment_term_description, invoice_due_date, sold_to_customer_no, document_type, sold_to_customer_name, 
+          source_system, currency_code, region, segment, gbs_group, __inserted_on, __inserted_timestamp]
+        m: [max_inserted_tsp]
+
+  - combine_id: jde
+    joins: 
+      join_id: jde
+      source_ids:
+        - source_id: jdexeeu_sales_order_invoice
+          alias: i
+          join_order: 1
+        - source_id: jdexeeu_sales_order_invoice_max
+          alias: m
+          join_order: 2
+          join_type: inner
+      join_conditions:
+          - left: i
+            right: m
+            condition: i.__inserted_timestamp = m.max_inserted_tsp
+      select_columns: 
+        i: [shipment_date, order_date, invoice_number, total_invoice_amount_usd, invoice_date, 
+          payment_term_code, entity_document_company_code, entity_document_company_name, user_id, 
+          payment_term_description, invoice_due_date, sold_to_customer_no, document_type, sold_to_customer_name, 
+          source_system, currency_code, region, segment, country, gbs_group, __inserted_on, __inserted_timestamp]
+        m: [max_inserted_tsp]
+
+
+
+
+targets:
+  - table_id: sales_order_invoice
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.sales_order_invoice
+    #schema_file: use_cases/h2r/h2r_silver_head_count_poc_schema.json
+    write_type: table
+    write_mode: append
+    options:
+      mergeSchema: "true"  # Option to merge schema
+    table_properties:
+      delta.feature.allowColumnDefaults: supported

@@ -1,0 +1,62 @@
+sources:
+  - source_id: payroll
+    table: sandbox.h2r_dbx_poc.ec_payroll
+    read_type: table
+    transformation_id: payroll
+
+transformations:
+  - id: "payroll"
+    column_mapping:
+        Payroll_Date: "payroll_date"
+        pay_period_start_date: payroll_start_date
+    column_rename:
+      - column: "pay_period_Start_Date"
+        target_column: "payroll_start_date"
+      - column: "Pay_Period_End_Date"
+        target_column: "payroll_end_date"
+      - column: "Base_Salary"
+        target_column: "base_salary"
+      - column: "Overtime_Pay"
+        target_column: "overtime_pay"  
+      - column: "Overtime_Hours"
+        target_column: "overtime_hours"   
+      - column: "Gross_Pay"
+        target_column: "gross_pay"
+      - column: "Tax_Deductions"
+        target_column: "tax_deductions"
+      - column: "Health_Insurance_Deduction"
+        target_column: "health_insurance_deductions"
+  - id: cast_cols
+    column_expressions:
+      - column: "*"
+        expression: "*"
+      - column: "payroll_date"
+        expression: "payroll_date"
+      - column: "payroll_start_date"
+        expression: "payroll_start_date"
+      - column: "payroll_end_date"
+        expression: "payroll_end_date"
+      - column: "base_salary"
+        expression: "cast(base_salary as decimal(10,2))"
+      - column: "overtime_pay"
+        expression: "cast(overtime_pay as decimal(10,2))"
+      - column: "overtime_hours"
+        expression: "cast(overtime_hours as decimal(10,2))"
+      - column: "gross_pay"
+        expression: "cast(gross_pay as decimal(10,2))"
+      - column: "tax_deductions"
+        expression: "cast(tax_deductions as decimal(10,2))"
+      - column: "health_insurance_deductions"
+        expression: "cast(health_insurance_deductions as decimal(10,2))"
+
+targets:
+  - table_id: head_count_poc
+    table: sandbox.de_ref_silver_mikesturwoldcontractor.head_count_poc
+    write_type: table
+    write_mode: overwrite
+    table_properties:
+      delta.feature.allowColumnDefaults: supported
+
+
+
+      

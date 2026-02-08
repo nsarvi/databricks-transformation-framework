@@ -1,12 +1,11 @@
 # Configurations for the target table(s)
 targets:
   - table_id: "target_customer_id_1"
-    table: "nsarvi.adm.customer_append"
+    table: "sandbox.integration_framework.customer_append"
     write_type: "table"
     write_mode: "append"
     partition_by: ["customer_region"] # Clustering and partitioning cannot both be specified
     options:
-      compression: "snappy"
       mergeSchema: "true"  # Option to merge schema
       overwriteSchema: "true"  # Option to overwrite schema
     schema_file: "tests/configs/schemas/silver/adm_customer.json"
@@ -14,12 +13,11 @@ targets:
       delta.autoOptimize.optimizeWrite: "true"
       delta.autoOptimize.autoCompact: "true"
   - table_id: "target_customer_id_2"
-    table: "nsarvi.adm.customer_overwrite"
+    table: "sandbox.integration_framework.customer_overwrite"
     write_type: "table"
     write_mode: "overwrite"
     partition_by: ["customer_region"] # Clustering and partitioning cannot both be specified
     options:
-      compression: "snappy"
       mergeSchema: "true"  # Option to merge schema
       overwriteSchema: "true"  # Option to overwrite schema
     schema_file: "tests/configs/schemas/silver/adm_customer.json"
@@ -27,12 +25,11 @@ targets:
       delta.autoOptimize.optimizeWrite: "true"
       delta.autoOptimize.autoCompact: "true"
   - table_id: "target_customer_id_3"
-    table: "nsarvi.adm.customer_cluster_by"
+    table: "sandbox.integration_framework.customer_cluster_by"
     write_type: "table"
     write_mode: "append"
     cluster_by: ["customer_region"] # Clustering and partitioning cannot both be specified
     options:
-      compression: "snappy"
       mergeSchema: "true"  # Option to merge schema
       overwriteSchema: "true"  # Option to overwrite schema
     schema_file: "tests/configs/schemas/silver/adm_customer.json"
