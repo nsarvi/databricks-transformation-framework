@@ -1,28 +1,39 @@
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "adm_ingestion_framework"
+name = "wilsonelser-dtf"
 dynamic = ["version"]
-description = "wheel file based on adm_ingestion_framework/src"
+description = "Config-driven Databricks transformation framework"
 authors = [
     { name = "niranjan.sarvi", email = "niranjan.sarvi@databricks.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+# Matches Databricks Runtime 19.0 (Python 3.12)
+requires-python = ">=3.12,<3.13"
+# pyspark, delta and databricks-sdk are provided by the Databricks Runtime
 dependencies = [
-    "setuptools"
+    "pyyaml",
 ]
 
-[tool.setuptools]
-packages = { find = { where = ["src"] } }  # <--- Defines the source directory
-
-[tool.setuptools.package-dir]
-"" = "src"  # <--- Maps the root package to `src/`
-
-[tool.setuptools.dynamic]
-version = { attr = "adm.__version__" }
-
 [project.scripts]
-main = "adm.main:main"
+main = "wilsonelser.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "databricks-dlt",
+    # Keep in sync with the job cluster's spark_version (19.0)
+    "databricks-connect>=19.0,<19.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/wilsonelser/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wilsonelser"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -7,7 +7,7 @@ targets:
     options:
       mergeSchema: "true"  # Option to merge schema
       overwriteSchema: "true"  # Option to overwrite schema
-    schema_file: "tests/configs/schemas/bronze/adm_customer_mapics.json"
+    schema_file: "tests/configs/schemas/bronze/customer_mapics.json"
     table_properties:
       delta.autoOptimize.optimizeWrite: "true"
       delta.autoOptimize.autoCompact: "true"
@@ -20,7 +20,7 @@ targets:
     options:
       mergeSchema: "true"  # Option to merge schema
       overwriteSchema: "true"  # Option to overwrite schema
-    schema_file: "tests/configs/schemas/bronze/adm_sales_mapics.json"
+    schema_file: "tests/configs/schemas/bronze/sales_mapics.json"
     table_properties:
       delta.autoOptimize.optimizeWrite: "true"
       delta.autoOptimize.autoCompact: "true"
@@ -33,7 +33,7 @@ targets:
     options:
       mergeSchema: "true"  # Option to merge schema
       overwriteSchema: "true"  # Option to overwrite schema
-    schema_file: "tests/configs/schemas/bronze/adm_customer_mapics.json"
+    schema_file: "tests/configs/schemas/bronze/customer_mapics.json"
     table_properties:
       delta.autoOptimize.optimizeWrite: "true"
       delta.autoOptimize.autoCompact: "true"

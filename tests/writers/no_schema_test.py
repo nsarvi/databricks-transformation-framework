@@ -9,21 +9,21 @@ from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
-from adm.integration.adm_table_writer import AdmTableWriter
-from adm.integration.utils.config_utils import ConfigUtils
-from adm.integration import yaml_constants as YC
+from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.utils.config_utils import ConfigUtils
+from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
 import logging
 
-class TestAdmTableWriter(unittest.TestCase):
+class TestTableWriter(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = AdmTableWriter._get_spark()
+        self.spark = TableWriter._get_spark()
         # Enable the logger to debug level
         logging.basicConfig(level=logging.DEBUG)
-        self.logger = logging.getLogger('adm.integration.adm_table_writer')
+        self.logger = logging.getLogger('wilsonelser.transformation.table_writer')
         self.logger.setLevel(logging.DEBUG)
         self.table_name_append="sandbox.integration_framework.no_schema_customer_cluster_by"
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_append}")
@@ -73,7 +73,7 @@ class TestAdmTableWriter(unittest.TestCase):
         
     def test_write_table_using_config_file_with_no_schema_file(self):
         """Tests writing a DataFrame to a table with no schema."""
-        writer = AdmTableWriter("tests/configs/targets/write_table_no_schema_config.yaml")
+        writer = TableWriter("tests/configs/targets/write_table_no_schema_config.yaml")
         target_id = "target_customer_no_schema"
 
         # Write the DataFrame to the table

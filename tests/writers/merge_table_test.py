@@ -9,21 +9,21 @@ from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
-from adm.integration.adm_table_writer import AdmTableWriter
-from adm.integration.utils.config_utils import ConfigUtils
-from adm.integration import yaml_constants as YC
+from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.utils.config_utils import ConfigUtils
+from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
 import logging
 
-class TestAdmTableWriter(unittest.TestCase):
+class TestTableWriter(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = AdmTableWriter._get_spark()
+        self.spark = TableWriter._get_spark()
         # Enable the logger to debug level
         logging.basicConfig(level=logging.DEBUG)
-        self.logger = logging.getLogger('adm.integration.adm_table_writer')
+        self.logger = logging.getLogger('wilsonelser.transformation.table_writer')
         self.logger.setLevel(logging.DEBUG)
         self.table_name_merge="sandbox.integration_framework.customer_sales"
         self.table_name_customer_mapics="sandbox.integration_framework.customer_mapics"
@@ -84,13 +84,13 @@ class TestAdmTableWriter(unittest.TestCase):
 
         customer_df = self.spark.createDataFrame(customer_data, self.customer_schema)
 
-        # Write the DataFrame to the table using AdmTableWriter
-        writer = AdmTableWriter("tests/configs/merge/source_config.yaml")
+        # Write the DataFrame to the table using TableWriter
+        writer = TableWriter("tests/configs/merge/source_config.yaml")
         writer.write_table("source_customer_mapics",customer_df)
 
         self.sales_df = self.spark.createDataFrame(sales_data, self.sales_schema)
 
-        # Write the DataFrame to the table using AdmTableWriter
+        # Write the DataFrame to the table using TableWriter
         writer.write_table("source_sales_mapics",self.sales_df)
 
         # Create initial target table for merge test
@@ -126,7 +126,7 @@ class TestAdmTableWriter(unittest.TestCase):
 
     def test_write_table_merge(self):
         """Tests the write_table method with merge operation."""
-        writer = AdmTableWriter("tests/configs/targets/write_table_merge_config.yaml")
+        writer = TableWriter("tests/configs/targets/write_table_merge_config.yaml")
         target_id = "target_customer_sales"
 
         # Perform merge operation
@@ -170,7 +170,7 @@ class TestAdmTableWriter(unittest.TestCase):
     def test_verify_inserted_customer_sales(self):
         self.logger.info(f"Testing insert and merge operation for initial_cust_1")
         """Tests the insert and merge operation for initial_cust_1."""
-        writer = AdmTableWriter("tests/configs/targets/write_table_merge_config.yaml")
+        writer = TableWriter("tests/configs/targets/write_table_merge_config.yaml")
         target_id = "target_customer_sales"
 
         # Insert new customer and sales data for initial_cust_1
@@ -184,7 +184,7 @@ class TestAdmTableWriter(unittest.TestCase):
         new_customer_df = self.spark.createDataFrame(new_customer_data, self.customer_schema)
         new_sales_df = self.spark.createDataFrame(new_sales_data, self.sales_schema)
 
-        source_writer = AdmTableWriter("tests/configs/merge/source_config.yaml")
+        source_writer = TableWriter("tests/configs/merge/source_config.yaml")
         source_writer.write_table("source_customer_mapics",new_customer_df)
         source_writer.write_table("source_sales_mapics", new_sales_df)
 
@@ -214,7 +214,7 @@ class TestAdmTableWriter(unittest.TestCase):
     def test_merge_duplicate_customer_sales(self):
         self.logger.info(f"Testing merge operation for duplicate customer data")
         """Tests the merge operation for duplicate customer data."""
-        writer = AdmTableWriter("tests/configs/targets/write_table_merge_config.yaml")
+        writer = TableWriter("tests/configs/targets/write_table_merge_config.yaml")
         target_id = "target_customer_sales"
 
         # Insert duplicate customer and sales data
@@ -238,7 +238,7 @@ class TestAdmTableWriter(unittest.TestCase):
         duplicate_customer_df = self.spark.createDataFrame(duplicate_customer_data, self.customer_schema)
         duplicate_sales_df = self.spark.createDataFrame(duplicate_sales_data, self.sales_schema)
 
-        source_writer = AdmTableWriter("tests/configs/merge/source_config.yaml")
+        source_writer = TableWriter("tests/configs/merge/source_config.yaml")
         source_writer.write_table("source_customer_mapics", duplicate_customer_df)
         source_writer.write_table("source_sales_mapics", duplicate_sales_df)
 

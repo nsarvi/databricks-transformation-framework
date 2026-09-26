@@ -1,10 +1,15 @@
-# This is a Databricks asset bundle definition for adm_ingestion_framework.
+# This is a Databricks asset bundle definition for wilsonelser-dtf.
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
-  name: adm_ingestion_framework
+  name: wilsonelser_dtf
 
 include:
   - resources/*.yml
+
+artifacts:
+  python_artifact:
+    type: whl
+    build: uv build --wheel
 
 targets:
   # The 'dev' target, for development purposes. This target is the default.
@@ -16,8 +21,8 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://adb-9847597111.11.azuredatabricks.net
-
+      host: https://adb-7405613624754030.10.azuredatabricks.net/
+      
   ## Optionally, there could be a 'staging' target here.
   ## (See Databricks docs on CI/CD at https://docs.databricks.com/dev-tools/bundles/ci-cd.html.)
   #
@@ -25,17 +30,4 @@ targets:
   #   workspace:
   #     host: https://adb-984752964297111.11.azuredatabricks.net
 
-  # The 'prod' target, used for production deployment.
-  prod:
-    # We use 'mode: production' to indicate this is a production deployment.
-    # Doing so enables strict verification of the settings below.
-    mode: production
-    workspace:
-      host: https://adb-9847597111.11.azuredatabricks.net
-      # We always use /Users/niranjan.sarvi@databricks.com for all resources to make sure we only have a single copy.
-      # If this path results in an error, please make sure you have a recent version of the CLI installed.
-      root_path: /Users/niranjan.sarvi@databricks.com/.bundle/${bundle.name}/${bundle.target}
-    run_as:
-      # This runs as niranjan.sarvi@databricks.com in production. We could also use a service principal here,
-      # see https://docs.databricks.com/dev-tools/bundles/permissions.html.
-      user_name: niranjan.sarvi@databricks.com
+

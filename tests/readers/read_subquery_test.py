@@ -12,24 +12,24 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from typing import Optional
-from adm.integration.adm_data_transformer import AdmDataTransformer
-from adm.integration.adm_table_writer import AdmTableWriter
-from adm.integration.adm_table_reader import AdmTableReader
+from wilsonelser.transformation.data_transformer import DataTransformer
+from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.table_reader import TableReader
 import logging
 
-class TestAdmDataTransformer(unittest.TestCase):
+class TestDataTransformer(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = AdmTableReader._get_spark()
+        self.spark = TableReader._get_spark()
         self.table_name_customer_mapics="sandbox.integration_framework.customer_mapics"
 
              
     def setUp(self):
          # Enable the logger to debug level
         logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('adm.integration')
+        logger = logging.getLogger('wilsonelser.transformation')
         logger.setLevel(logging.DEBUG)
        
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_customer_mapics}")
@@ -61,8 +61,8 @@ class TestAdmDataTransformer(unittest.TestCase):
         ]
         self.customer_df = self.spark.createDataFrame(customer_data, customer_schema)
 
-        # Write the DataFrame to the table using AdmTableWriter
-        writer = AdmTableWriter("tests/configs/sources/target_tables.yaml")
+        # Write the DataFrame to the table using TableWriter
+        writer = TableWriter("tests/configs/sources/target_tables.yaml")
         writer.write_table("source_customer_mapics",self.customer_df )
 
        
@@ -74,10 +74,10 @@ class TestAdmDataTransformer(unittest.TestCase):
     def test_subquery_execution(self):
         """Tests reading from a subquery and joining with another source."""
         # Initialize the table reader
-        adm_table_reader = AdmTableReader("tests/configs/sources/read_from_subquery_config.yaml")
+        table_reader = TableReader("tests/configs/sources/read_from_subquery_config.yaml")
 
         # Read the subquery source
-        subquery_df = adm_table_reader.read_source_table("sapitmxref_subquery")
+        subquery_df = table_reader.read_source_table("sapitmxref_subquery")
         
         # Show the result for debugging
         print(subquery_df.show())
