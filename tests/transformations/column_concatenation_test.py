@@ -11,6 +11,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformerColumnExpressions(unittest.TestCase):
 
@@ -48,7 +52,7 @@ class TestDataTransformerColumnExpressions(unittest.TestCase):
         transformation_id = "transformation_id_1"
         
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
         # Check if the new columns are added
         self.assertIn("total_price", transformed_df.columns)
         self.assertIn("discounted_price", transformed_df.columns)
@@ -70,7 +74,7 @@ class TestDataTransformerColumnExpressions(unittest.TestCase):
         transformation_id = "transformation_id_1"
         
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
         # Check if the new concatenated columns are added
         self.assertIn("region_state", transformed_df.columns)
         self.assertIn("region_state_with_trim", transformed_df.columns)

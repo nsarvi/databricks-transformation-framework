@@ -11,6 +11,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformerMain(unittest.TestCase):
 
@@ -51,9 +55,9 @@ class TestDataTransformerMain(unittest.TestCase):
         """Tests the main transformations logic on the DataFrame."""
         transformer = BaseDataTransformer("tests/configs/transformers/main_transformation_distinct_config.yaml")
         transformation_id = "transformation_id_1"
-        print(self.test_dataframe.show())
+        logger.info("test_dataframe:\n%s", df_to_string(self.test_dataframe))
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
         
     # Check if the distinct columns are correctly applied
         self.assertIn("sales_id", transformed_df.columns)

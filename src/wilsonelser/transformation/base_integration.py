@@ -14,6 +14,7 @@ from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 class BaseIntegration:
     def __init__(self, config_file: str, env_config_path: Optional[str] = None):
         self.spark = self._get_spark()
+        self.env_vars = ConfigUtils.load_env_variables(env_config_path)
         self.config = ConfigUtils.load_config(config_file, env_config_path)
         self.global_config = self._load_global_config()
         self.source_lookup = self._build_source_lookup()

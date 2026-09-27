@@ -8,8 +8,6 @@ tests_src_path = (Path(__file__).resolve().parent.parent.parent / "tests/src").a
 sys.path.append(tests_src_path)
 
 
-print("Final sys.path:")
-print("\n".join(sys.path))
 
 from typing import Optional
 import unittest
@@ -18,6 +16,10 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
 import random
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -94,6 +96,6 @@ class TestDataTransformer(unittest.TestCase):
         self.assertEqual(total_price_by_func_value, expected_total_price_by_func, f"Assertion failed: total_price_by_func {total_price_by_func_value} is not equal to expected {expected_total_price_by_func}")
         self.assertEqual(price_value, expected_price, f"Assertion failed: price {price_value} is not equal to expected {expected_price}")
         
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
 if __name__ == "__main__":
     unittest.main()

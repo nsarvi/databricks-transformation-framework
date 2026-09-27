@@ -1,12 +1,12 @@
 # Configurations for the source table(s)
 sources:
   - source_id: "source_1"
-    table: "sandbox.integration_framework.customer_mapics"
+    table: "${catalog}.${schema}.customer_mapics"
     transformation_id: "transformation_id_1"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
   - source_id: "source_2"
-    table: "sandbox.integration_framework.sales_mapics"
+    table: "${catalog}.${schema}.sales_mapics"
     transformation_id: "transformation_id_2"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
@@ -87,7 +87,7 @@ combine:
 # Configurations for the target table(s)
 targets:
   - table_id: "target_customer_sales"
-    table: "sandbox.integration_framework.customer_sales"
+    table: "${catalog}.${schema}.customer_sales"
     write_type: "table"
     write_mode: "overwrite"
     partition_by: ["store_id"]  # Clustering and partitioning cannot both be specified

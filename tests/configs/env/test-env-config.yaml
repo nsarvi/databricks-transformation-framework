@@ -1,0 +1,3 @@
+# Test-only placeholder values; catalog and schema always come from the test run (TEST_CATALOG)
+customer_table: customer_mapics
+sales_table: sales_mapics

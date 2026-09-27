@@ -20,7 +20,12 @@ from typing import Optional
 from wilsonelser.transformation.data_transformer import DataTransformer
 from wilsonelser.transformation.table_writer import TableWriter
 from wilsonelser.transformation.table_reader import TableReader
-import logging
+import pytest
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
+pytestmark = pytest.mark.integration
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -30,10 +35,6 @@ class TestDataTransformer(unittest.TestCase):
         self.spark = TableReader._get_spark()
 
     def setUp(self):
-         # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('wilsonelser.transformation')
-        logger.setLevel(logging.DEBUG)
        
        # Create test data for adm_customer_mapics table
         customer_schema = StructType([
@@ -106,7 +107,7 @@ class TestDataTransformer(unittest.TestCase):
         result_df = table_reader.read_source_table("source_1")
 
 
-        print(result_df.show())
+        logger.info("result_df:\n%s", df_to_string(result_df))
         # assertions on the additional column values
         # Ensures row count is unchanged
         self.assertEqual(result_df.count(), self.customer_df.count()) 
@@ -120,12 +121,12 @@ class TestDataTransformer(unittest.TestCase):
     
     def test_table_reads_using_environments(self):
         """Tests reading from the source tables and applying transformations using environments."""
-        table_reader = TableReader("tests/configs/sources/read_env_specific_tables_config.yaml", "tests/configs/env/dev-env-config.yaml")
+        table_reader = TableReader("tests/configs/sources/read_env_specific_tables_config.yaml", "tests/configs/env/test-env-config.yaml")
         
         result_df = table_reader.read_source_table("source_1")
 
 
-        print(result_df.show())
+        logger.info("result_df:\n%s", df_to_string(result_df))
         # assertions on the additional column values
         # Ensures row count is unchanged
         self.assertEqual(result_df.count(), self.customer_df.count()) 
@@ -140,12 +141,12 @@ class TestDataTransformer(unittest.TestCase):
     def test_table_reads_using_environment_file_from_root(self):
         """Tests reading from the source tables and applying transformations using environments."""
         
-        table_reader = TableReader("read_env_specific_tables_config.yaml", "dev-env-config.yaml")
+        table_reader = TableReader("read_env_specific_tables_config.yaml", "test-env-config.yaml")
         
         result_df = table_reader.read_source_table("source_1")
 
 
-        print(result_df.show())
+        logger.info("result_df:\n%s", df_to_string(result_df))
         # assertions on the additional column values
         # Ensures row count is unchanged
         self.assertEqual(result_df.count(), self.customer_df.count()) 

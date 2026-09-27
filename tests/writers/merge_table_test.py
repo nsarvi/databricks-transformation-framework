@@ -13,7 +13,13 @@ from wilsonelser.transformation.table_writer import TableWriter
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
-import logging
+import pytest
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+from integration_env import table_name
+
+logger = LoggingHandler(__name__).get_logger()
+pytestmark = pytest.mark.integration
 
 class TestTableWriter(unittest.TestCase):
 
@@ -21,19 +27,15 @@ class TestTableWriter(unittest.TestCase):
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
         self.spark = TableWriter._get_spark()
-        # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        self.logger = logging.getLogger('wilsonelser.transformation.table_writer')
-        self.logger.setLevel(logging.DEBUG)
-        self.table_name_merge="sandbox.integration_framework.customer_sales"
-        self.table_name_customer_mapics="sandbox.integration_framework.customer_mapics"
-        self.table_name_sales_mapics="sandbox.integration_framework.sales_mapics"
+        self.table_name_merge=table_name("customer_sales")
+        self.table_name_customer_mapics=table_name("customer_mapics")
+        self.table_name_sales_mapics=table_name("sales_mapics")
 
 
     def setUp(self):
         """Creates a reusable DataFrame with 10 rows."""
-        self.logger.info(f"dropping tables if they exist  {self.table_name_merge}")
-        self.table_name_merge="sandbox.integration_framework.customer_sales"
+        logger.info("dropping tables if they exist  %s", self.table_name_merge)
+        self.table_name_merge=table_name("customer_sales")
 
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_sales_mapics}")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_customer_mapics}")
@@ -115,12 +117,12 @@ class TestTableWriter(unittest.TestCase):
         ]
         initial_target_df = self.spark.createDataFrame(initial_target_data, target_schema)
         initial_target_df.write.mode("overwrite").saveAsTable(self.table_name_merge)
-        self.logger.info(f"Initial target table {self.table_name_merge} created with data.")
+        logger.info("Initial target table %s created with data.", self.table_name_merge)
 
     @classmethod
     def tearDownClass(self):
         """Drops the table after each test."""
-        self.logger.info("Dropping tables ")
+        logger.info("Dropping tables ")
         # self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_merge}")
 
 
@@ -149,8 +151,8 @@ class TestTableWriter(unittest.TestCase):
         # Verify the schema of the resulting DataFrame
         result_df = self.spark.table(self.table_name_merge)
         self.assertEqual(result_df.schema, expected_schema)
-        self.logger.info(f"Resulting DataFrame schema: ")
-        self.logger.info(result_df.show())
+        logger.info("Resulting DataFrame schema: ")
+        logger.info("result_df:\n%s", df_to_string(result_df))
 
         # Verify if the initial data loaded exists
         result_customer_ids = [row['customer_id'] for row in result_df.select("customer_id").collect()]
@@ -158,17 +160,17 @@ class TestTableWriter(unittest.TestCase):
         
         for customer_id in expected_customer_ids:
             self.assertIn(customer_id, result_customer_ids)
-        self.logger.info(f"Verified initial customer IDs exist in the resulting DataFrame: {expected_customer_ids}")
+        logger.info("Verified initial customer IDs exist in the resulting DataFrame: %s", expected_customer_ids)
         # Verify if the merged data exists - Filters are applied post merge for the price < 50
         expected_merged_customer_ids = ["cust_1", "cust_3"]
         
         for customer_id in expected_merged_customer_ids:
             self.assertIn(customer_id, result_customer_ids)
-        self.logger.info(f"Verified merged customer IDs exist in the resulting DataFrame: {expected_merged_customer_ids}")
+        logger.info("Verified merged customer IDs exist in the resulting DataFrame: %s", expected_merged_customer_ids)
 
     
     def test_verify_inserted_customer_sales(self):
-        self.logger.info(f"Testing insert and merge operation for initial_cust_1")
+        logger.info("Testing insert and merge operation for initial_cust_1")
         """Tests the insert and merge operation for initial_cust_1."""
         writer = TableWriter("tests/configs/targets/write_table_merge_config.yaml")
         target_id = "target_customer_sales"
@@ -192,8 +194,8 @@ class TestTableWriter(unittest.TestCase):
         writer.write_table(table_id=target_id)
         
         result_df = self.spark.table(self.table_name_merge)
-        self.logger.info(f"Resulting DataFrame schema: ")
-        self.logger.info(result_df.show())
+        logger.info("Resulting DataFrame schema: ")
+        logger.info("result_df:\n%s", df_to_string(result_df))
 
         # Verify if the initial data loaded exists
         result_customer_ids = [row['customer_id'] for row in result_df.select("customer_id").collect()]
@@ -201,18 +203,18 @@ class TestTableWriter(unittest.TestCase):
 
         for customer_id in expected_customer_ids:
             self.assertIn(customer_id, result_customer_ids)
-        self.logger.info(f"Verified initial customer IDs exist in the resulting DataFrame: {expected_customer_ids}")
+        logger.info("Verified initial customer IDs exist in the resulting DataFrame: %s", expected_customer_ids)
         
         # Verify the inserted and merged data for initial_cust_1
         result_customer_data = result_df.filter(result_df.customer_id == "initial_cust_1").collect()
         self.assertEqual(len(result_customer_data), 1)
         self.assertEqual(result_customer_data[0]['customer_name'], "inserted_John Doe")
         self.assertEqual(result_customer_data[0]['product_id_mapics'], "prod_6")
-        self.logger.info(f"Verified inserted and merged data for initial_cust_1: {result_customer_data[0]}")
+        logger.info("Verified inserted and merged data for initial_cust_1: %s", result_customer_data[0])
 
     @unittest.skip("Skipping ")
     def test_merge_duplicate_customer_sales(self):
-        self.logger.info(f"Testing merge operation for duplicate customer data")
+        logger.info("Testing merge operation for duplicate customer data")
         """Tests the merge operation for duplicate customer data."""
         writer = TableWriter("tests/configs/targets/write_table_merge_config.yaml")
         target_id = "target_customer_sales"
@@ -246,8 +248,8 @@ class TestTableWriter(unittest.TestCase):
         writer.write_table(table_id=target_id)
         
         result_df = self.spark.table(self.table_name_merge)
-        self.logger.info(f"Resulting DataFrame schema: ")
-        self.logger.info(result_df.show())
+        logger.info("Resulting DataFrame schema: ")
+        logger.info("result_df:\n%s", df_to_string(result_df))
 
         # Verify if the initial data loaded exists
         result_customer_ids = [row['customer_id'] for row in result_df.select("customer_id").collect()]
@@ -255,13 +257,13 @@ class TestTableWriter(unittest.TestCase):
 
         for customer_id in expected_customer_ids:
             self.assertIn(customer_id, result_customer_ids)
-        self.logger.info(f"Verified initial customer IDs exist in the resulting DataFrame: {expected_customer_ids}")
+        logger.info("Verified initial customer IDs exist in the resulting DataFrame: %s", expected_customer_ids)
         
         # Verify the merged data for cust_1
         result_customer_data = result_df.filter(result_df.customer_id == "cust_1").collect()
         self.assertEqual(len(result_customer_data), 2)
         self.assertEqual(result_customer_data[0]['product_id_mapics'], "prod_6")
-        self.logger.info(f"Verified merged data for cust_1: {result_customer_data}")
+        logger.info("Verified merged data for cust_1: %s", result_customer_data)
 
 if __name__ == "__main__":
     unittest.main()

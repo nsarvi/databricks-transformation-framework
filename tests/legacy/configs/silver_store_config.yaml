@@ -1,12 +1,12 @@
 # Target table in Silver layer. This table will have transfored columns and data
 target_table:
-  name: "sandbox.integration_framework.final_sales"
+  name: "${catalog}.${schema}.final_sales"
   schema_file: "schemas/adm_silver_store_config.json"
 
 # Configurations for the source table(s)
 sources:
   - table_id: "source_1"
-    table: "sandbox.integration_framework.adm_store_1"
+    table: "${catalog}.${schema}.adm_store_1"
     # Columns to select and map the source table column(s) to target table column(s) name. This is also a column rename
     column_mapping:   
       sales_id: "sales_id"
@@ -27,7 +27,7 @@ sources:
       - condition: "cost > 100"
 
   - table_id: "source_2"
-    table: "sandbox.integration_framework.adm_store_2"
+    table: "${catalog}.${schema}.adm_store_2"
     column_mapping:
       sales_id: "transaction_id"
       store_id: "branch_id"
@@ -46,7 +46,7 @@ sources:
       - condition: "value < 1000"
       - condition: "store in (10,20)"
 
-  - table: "sandbox.integration_framework.adm_store_2"
+  - table: "${catalog}.${schema}.adm_store_2"
     column_mapping:
       sales_id: "transaction_id"
       store_id: "branch_id"
@@ -120,10 +120,10 @@ transformations:
 
 combine:
   unions:
-  - tables: ["sandbox.integration_framework.store1", "sandbox.integration_framework.store2"]
+  - tables: ["${catalog}.${schema}.store1", "${catalog}.${schema}.store2"]
     distinct: true  # Remove duplicates
   joins:
-    - table: "sandbox.integration_framework.store_info"
+    - table: "${catalog}.${schema}.store_info"
       on: "store_id"
       type: "left"
 

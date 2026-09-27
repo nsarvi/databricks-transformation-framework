@@ -10,6 +10,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -44,7 +48,7 @@ class TestDataTransformer(unittest.TestCase):
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)
 
         # Display for debugging
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
 
         # Filtering Assertions
         expected_products = {"product_8", "product_9", "product_10"}

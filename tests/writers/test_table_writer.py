@@ -13,7 +13,13 @@ from wilsonelser.transformation.table_writer import TableWriter
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
-import logging
+import pytest
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+from integration_env import table_name
+
+logger = LoggingHandler(__name__).get_logger()
+pytestmark = pytest.mark.integration
 
 class TestTableWriter(unittest.TestCase):
 
@@ -21,13 +27,9 @@ class TestTableWriter(unittest.TestCase):
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
         self.spark = TableWriter._get_spark()
-        # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        self.logger = logging.getLogger('wilsonelser.transformation.table_writer')
-        self.logger.setLevel(logging.DEBUG)
-        self.table_name_append="sandbox.integration_framework.customer_append"
-        self.table_name_overwrite="sandbox.integration_framework.customer_overwrite"
-        self.table_name_cluster_by="sandbox.integration_framework.customer_cluster_by"
+        self.table_name_append=table_name("customer_append")
+        self.table_name_overwrite=table_name("customer_overwrite")
+        self.table_name_cluster_by=table_name("customer_cluster_by")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_append}")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_overwrite}")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_cluster_by}")
@@ -71,7 +73,7 @@ class TestTableWriter(unittest.TestCase):
     @classmethod
     def tearDownClass(self):
         """Drops the table after each test."""
-        self.logger.info("Dropping tables ")
+        logger.info("Dropping tables ")
       #  self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_append}")
       #  self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_overwrite}")
       #  self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_cluster_by}")
@@ -95,10 +97,10 @@ class TestTableWriter(unittest.TestCase):
 
         # Verify the schema of the written table
         self.assertEqual(result_df.schema, self.test_data_frame.schema)
-        self.logger.info("Table data before writing")
-        self.logger.info(self.test_data_frame.show())
-        self.logger.info("Table data after after writing")
-        self.logger.info(result_df.show())
+        logger.info("Table data before writing")
+        logger.info("test_data_frame:\n%s", df_to_string(self.test_data_frame))
+        logger.info("Table data after after writing")
+        logger.info("result_df:\n%s", df_to_string(result_df))
         # Verify the data of the written table
         self.assertEqual(result_df.count(), self.test_data_frame.count())
         
@@ -113,7 +115,7 @@ class TestTableWriter(unittest.TestCase):
         self.assertIn("partitionBy", operation_parameters["operationParameters"])
         partition_by = eval(operation_parameters["operationParameters"]["partitionBy"])
         self.assertEqual(partition_by, ["customer_region"])
-        self.logger.info("Test test_write_table_using_config_file_append passed")
+        logger.info("Test test_write_table_using_config_file_append passed")
 
     def test_write_table_using_config_file_overwrite(self):
         """Tests writing a DataFrame to a table with overwrite mode."""
@@ -131,10 +133,10 @@ class TestTableWriter(unittest.TestCase):
 
         # Verify the schema of the written table
         self.assertEqual(result_df.schema, self.test_data_frame.schema)
-        self.logger.info("Table data before writing")
-        self.logger.info(self.test_data_frame.show())
-        self.logger.info("Table data after after writing")
-        self.logger.info(result_df.show())
+        logger.info("Table data before writing")
+        logger.info("test_data_frame:\n%s", df_to_string(self.test_data_frame))
+        logger.info("Table data after after writing")
+        logger.info("result_df:\n%s", df_to_string(result_df))
         # Verify the data of the written table
         self.assertEqual(result_df.count(), self.test_data_frame.count())
 
@@ -149,7 +151,7 @@ class TestTableWriter(unittest.TestCase):
         self.assertIn("partitionBy", operation_parameters["operationParameters"])
         partition_by = eval(operation_parameters["operationParameters"]["partitionBy"])
         self.assertEqual(partition_by, ["customer_region"])
-        self.logger.info("Test test_write_table_using_config_file_overwrite passed")
+        logger.info("Test test_write_table_using_config_file_overwrite passed")
 
     def test_write_table_using_config_file_cluster_by(self):
         """Tests writing a DataFrame to a table with cluster by."""
@@ -168,10 +170,10 @@ class TestTableWriter(unittest.TestCase):
 
         # Verify the schema of the written table
         self.assertEqual(result_df.schema, self.test_data_frame.schema)
-        self.logger.info("Table data before writing")
-        self.logger.info(self.test_data_frame.show())
-        self.logger.info("Table data after after writing")
-        self.logger.info(result_df.show())
+        logger.info("Table data before writing")
+        logger.info("test_data_frame:\n%s", df_to_string(self.test_data_frame))
+        logger.info("Table data after after writing")
+        logger.info("result_df:\n%s", df_to_string(result_df))
         # Verify the data of the written table
         self.assertEqual(result_df.count(), self.test_data_frame.count())
 
@@ -186,7 +188,7 @@ class TestTableWriter(unittest.TestCase):
         self.assertIn("clusterBy", operation_parameters["operationParameters"])
         cluster_by = eval(operation_parameters["operationParameters"]["clusterBy"])
         self.assertEqual(cluster_by, ["customer_region"])
-        self.logger.info("Test test_write_table_using_config_file_cluster_by passed")
+        logger.info("Test test_write_table_using_config_file_cluster_by passed")
 
     
 if __name__ == "__main__":

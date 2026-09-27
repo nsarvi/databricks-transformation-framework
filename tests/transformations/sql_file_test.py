@@ -10,7 +10,12 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
 from wilsonelser.transformation.data_transformer import DataTransformer
 from wilsonelser.transformation.table_writer import TableWriter
-import logging
+import pytest
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
+pytestmark = pytest.mark.integration
 
 
 class TestSQLTransformations(unittest.TestCase):
@@ -18,10 +23,7 @@ class TestSQLTransformations(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Creates a Spark session and sets up test data."""
-        cls.spark = SparkSession.builder \
-            .appName("TestSQLTransformations") \
-            .master("local[*]") \
-            .getOrCreate()
+        cls.spark = DataTransformer._get_spark()
 
         # Create test data for customer table
         customer_schema = StructType([
@@ -81,18 +83,14 @@ class TestSQLTransformations(unittest.TestCase):
         transformer = DataTransformer("tests/configs/transformers/transformation_sql_file_config.yaml")
         result_df = transformer.apply_transformations("transformation_id_1")
 
-        # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('wilsonelser.transformation.table_writer')
-        logger.setLevel(logging.DEBUG)
 
         # Log the input and output DataFrames
         logger.info("Customer DataFrame:")
-        self.customer_df.show()
+        logger.info("customer_df:\n%s", df_to_string(self.customer_df))
         logger.info("Sales DataFrame:")
-        self.sales_df.show()
+        logger.info("sales_df:\n%s", df_to_string(self.sales_df))
         logger.info("Result DataFrame after SQL file transformation:")
-        result_df.show()
+        logger.info("result_df:\n%s", df_to_string(result_df))
 
         # Validate the result
         # Check if the result contains the expected columns and rows

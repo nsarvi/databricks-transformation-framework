@@ -12,6 +12,10 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 from wilsonelser.transformation.data_transformer import DataTransformer
 from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -81,7 +85,7 @@ class TestDataTransformer(unittest.TestCase):
 
         # Apply the union transformations
         union_df = transformer.apply_unions(combine_id)
-        print(union_df.show())
+        logger.info("union_df:\n%s", df_to_string(union_df))
         # Check if the union operation is correctly applied
         self.assertEqual(union_df.count(), self.df1.count() + self.df2.count() + self.df3.count() + self.df4.count())
         self.assertIn("sales_id", union_df.columns)
@@ -116,7 +120,7 @@ class TestDataTransformer(unittest.TestCase):
 
         # Apply the union transformations
         union_df = transformer.apply_unions(combine_id)
-        print(union_df.show())
+        logger.info("union_df:\n%s", df_to_string(union_df))
         # Check if the union operation is correctly applied
         self.assertEqual(union_df.count(), self.df1.count() + self.df2.count() + self.df3.count() + self.df4.count())
         self.assertIn("sales_id", union_df.columns)

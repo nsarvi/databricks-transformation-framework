@@ -14,7 +14,12 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 from wilsonelser.transformation.data_transformer import DataTransformer
 from wilsonelser.transformation.table_writer import TableWriter
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
-import logging
+import pytest
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
+pytestmark = pytest.mark.integration
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -95,21 +100,17 @@ class TestDataTransformer(unittest.TestCase):
         transformer = DataTransformer("tests/configs/joins/joins_config.yaml")
         result_df = transformer.apply_joins("combine_id_1")
         
-         # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('wilsonelser.transformation.table_writer')
-        logger.setLevel(logging.DEBUG)
-        logger.info(self.customer_df.show())
-        logger.info(self.sales_df.show())
-        logger.info(result_df.show())
+        logger.info("customer_df:\n%s", df_to_string(self.customer_df))
+        logger.info("sales_df:\n%s", df_to_string(self.sales_df))
+        logger.info("result_df:\n%s", df_to_string(result_df))
         
         # Check if cust_1 and cust_3 are in the result set
         result_customer_ids = [row.transaction_id for row in result_df.select("transaction_id").distinct().collect()]
-        logger.info(result_customer_ids)
+        logger.info("result_customer_ids: %s", result_customer_ids)
         self.assertIn("trans_1", result_customer_ids, "trans_1 is not in the result set")
         self.assertIn("trans_3", result_customer_ids, "trans_3 is not in the result set")
 
-        print(result_df.show())
+        logger.info("result_df:\n%s", df_to_string(result_df))
     
    #@unittest.skip("Its working, skip for now")
     def test_apply_joins_with_and_conditions(self):
@@ -117,13 +118,9 @@ class TestDataTransformer(unittest.TestCase):
         transformer = DataTransformer("tests/configs/joins/joins_config.yaml")
         result_df = transformer.apply_joins("combine_with_and_condition")
         
-         # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('wilsonelser.transformation.table_writer')
-        logger.setLevel(logging.DEBUG)
-        logger.info(self.customer_df.show())
-        logger.info(self.sales_df.show())
-        logger.info(result_df.show())
+        logger.info("customer_df:\n%s", df_to_string(self.customer_df))
+        logger.info("sales_df:\n%s", df_to_string(self.sales_df))
+        logger.info("result_df:\n%s", df_to_string(result_df))
         
         # Check if cust_1 and cust_3 are in the result set
         result_customer_ids = [row.transaction_id for row in result_df.select("transaction_id").distinct().collect()]

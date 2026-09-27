@@ -36,7 +36,7 @@ resources:
       job_clusters:
         - job_cluster_key: job_cluster
           new_cluster:
-            spark_version: 19.x-scala2.13
+            spark_version: 18.x-scala2.13
             node_type_id: Standard_D3_v2
             autoscale:
                 min_workers: 1

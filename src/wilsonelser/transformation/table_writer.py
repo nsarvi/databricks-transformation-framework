@@ -67,15 +67,18 @@ class TableWriter(DataTransformer):
     def _create_table(self, table_id: str, df: DataFrame) -> None: ...
     
     def _create_table(self, table_id: str, df: Optional[DataFrame] = None) -> None:
-        """Creates a table based on the table_id and optional DataFrame schema."""
+        """Creates an empty target table from the schema file, or the DataFrame's schema as a fallback.
+
+        Only the table is created here; the data is written by write_table. A batch write of an
+        empty DataFrame is used for both table and stream targets.
+        """
         target_config = self.target_lookup.get(table_id)
         if not target_config:
             raise ValueError(f"Configuration not found for table_id: {table_id}")
         table_name = target_config.get(YC.TABLE_KEY)
         if not table_name:
             raise ValueError(f"Table name not found in configuration for table_id: {table_id}")
-        table_exists = self.spark.catalog.tableExists(table_name)
-        if table_exists:
+        if self.spark.catalog.tableExists(table_name):
             self.logger.info(f"Table {table_name} already exists. Skipping creation.")
             return
 
@@ -83,64 +86,15 @@ class TableWriter(DataTransformer):
         self.logger.debug(f"Table configuration: {target_config}")
 
         schema = self._get_table_schema(table_id, df)
-        if df is None:
-            new_df = self.spark.createDataFrame([], schema)
-        else:
-            new_df = df.select(*schema.names)
+        writer = self.spark.createDataFrame([], schema).write.format("delta").mode(YC.WRITE_MODE_APPEND)
         partition_by = target_config.get(YC.PARTITION_BY_KEY, [])
         cluster_by = target_config.get(YC.CLUSTER_BY_KEY, [])
-        write_type = target_config.get(YC.WRITE_TYPE_KEY, YC.WRITE_TYPE_TABLE)
-        if write_type == YC.WRITE_TYPE_TABLE:
-            writer = new_df.write.mode(YC.WRITE_MODE_APPEND).options(**target_config.get(YC.OPTIONS_KEY, {}))
-            if partition_by:
-                writer = writer.partitionBy(*partition_by)
-            elif cluster_by:
-                writer = writer.clusterBy(*cluster_by)
-            writer = writer.saveAsTable(table_name)
-            self.logger.info(f"Table {table_name} created successfully.")
-        elif write_type == YC.WRITE_TYPE_STREAM:
-            checkpoint = self._get_checkpoint_location(table_id)
-            if not checkpoint:
-                raise ValueError(f"Checkpoint location is missing for table_id: {table_id}")
-            
-            options = target_config.get(YC.OPTIONS_KEY, {})
-            options.update({"checkpointLocation": checkpoint})
-            
-            query_name = f"streaming-{table_name}"
-            trigger_option = options.get("trigger", "once")  # Default to "once" if not specified
-            
-            writer = new_df.writeStream \
-                .outputMode(YC.WRITE_MODE_APPEND) \
-                .options(**options) \
-                .queryName(query_name)
-            
-            # Apply the trigger option
-            if trigger_option == "once":
-                writer = writer.trigger(once=True)
-            elif trigger_option.startswith("processingTime="):
-                interval = trigger_option.split("=")[1].strip()
-                writer = writer.trigger(processingTime=interval)
-            elif trigger_option.startswith("continuous="):
-                interval = trigger_option.split("=")[1].strip()
-                writer = writer.trigger(continuous=interval)
-            else:
-                raise ValueError(f"Unsupported trigger option: {trigger_option}")
-            
-            self.logger.info(f"Starting streaming table creation for {table_name} with query name {query_name}")
-            streaming_query = writer.toTable(table_name)
-            
-            try:
-                self.logger.info(f"Waiting for the streaming query to finish for table: {table_name}")
-                streaming_query.awaitTermination()
-            except Exception as e:
-                self.logger.error(f"Error while running streaming query for table {table_name}: {str(e)}")
-                raise
-            finally:
-                if streaming_query and streaming_query.isActive:
-                    streaming_query.stop()
-                    self.logger.info(f"Streaming query stopped for table: {table_name}")
-        else:
-            raise ValueError(f"Unsupported write type: {write_type}")
+        if partition_by:
+            writer = writer.partitionBy(*partition_by)
+        elif cluster_by:
+            writer = writer.clusterBy(*cluster_by)
+        writer.saveAsTable(table_name)
+        self.logger.info(f"Table {table_name} created successfully.")
      
      
     def _get_source_df(self, source_id: str, source_type: str) -> DataFrame:
@@ -161,13 +115,14 @@ class TableWriter(DataTransformer):
         else:
             raise ValueError(f"Unsupported merge or source type: {source_type}. Supported types are: {YC.COMBINE_KEY}, {YC.SOURCES_KEY}")
 
-    def merge_into_target(self, table_id: str):
+    def merge_into_target(self, table_id: str, source_df: Optional[DataFrame] = None):
         """
         Perform a merge operation into the target Delta table based on the provided table_id.
         This method looks up the target configuration using the given table_id, retrieves the source DataFrame for the merge,
         and performs the merge operation based on the specified conditions and actions.
         Args:
             table_id (str): The identifier for the target table configuration.
+            source_df (Optional[DataFrame]): The source DataFrame; read from the configured source when not provided.
         Raises:
             ValueError: If the configuration for the given table_id is not found.
         Notes:
@@ -189,7 +144,8 @@ class TableWriter(DataTransformer):
         target_alias = target_config.get(YC.TARGET_ALIAS_KEY, "target")
 
         # Get the source DataFrame for the merge operation
-        source_df = self._get_source_df(merge_source_id, merge_source_type)
+        if source_df is None:
+            source_df = self._get_source_df(merge_source_id, merge_source_type)
 
         when_matched = merge_actions.get(YC.WHEN_MATCHED_KEY, {}).get(YC.UPDATE_KEY, [])
         when_not_matched = merge_actions.get(YC.WHEN_NOT_MATCHED_KEY, {}).get(YC.INSERT_KEY, [])
@@ -219,108 +175,109 @@ class TableWriter(DataTransformer):
     
     
     def write_table(self, table_id: str, df: Optional[DataFrame] = None) -> None:
-        """Writes the DataFrame to the target table based on the table_id."""
-        
+        """Writes the DataFrame, or the configured source when none is given, to the target table based on the table_id.
+
+        The target table is created first when it does not exist, then the data is always written,
+        so the first run behaves the same as later runs for append, overwrite, merge and stream.
+        """
+
         target_config = self.target_lookup.get(table_id)
         if not target_config:
             raise ValueError(f"Configuration not found for table_id: {table_id}")
 
         table_name = target_config.get(YC.TABLE_KEY)
+        write_type = target_config.get(YC.WRITE_TYPE_KEY, YC.WRITE_TYPE_TABLE)
+        write_mode = target_config.get(YC.WRITE_MODE_KEY, YC.WRITE_MODE_APPEND)
+        options = target_config.get(YC.OPTIONS_KEY, {})
+
+        # Read the configured source when no DataFrame is passed in
+        if df is None:
+            source_type = target_config.get(YC.SOURCE_TYPE_KEY)
+            source_id = target_config.get(YC.SOURCE_ID_KEY)
+            df = self._get_source_df(source_id, source_type)
+
+        # Create the target table (schema only) before writing to it
         if not self.spark.catalog.tableExists(table_name):
             self.logger.info(f"Table {table_name} does not exist. Proceeding to create for table_id: {table_id}")
-            if df is None:
-                schema = self._get_table_schema(table_id)
-                df = self.spark.createDataFrame([], schema)
             self._create_table(table_id, df)
-        else:
-            write_type = target_config.get(YC.WRITE_TYPE_KEY, YC.WRITE_TYPE_TABLE)
-            write_mode = target_config.get(YC.WRITE_MODE_KEY, YC.WRITE_MODE_APPEND)
-            options = target_config.get(YC.OPTIONS_KEY, {})
-        
-            if write_type == YC.WRITE_TYPE_TABLE:
-                self.logger.debug(f"Writing DataFrame to target table with table_id: {table_id}")
-                if write_mode == YC.WRITE_MODE_MERGE:
-                    self.merge_into_target(table_id)
-                else:
-                    if df is None:
-                        source_type = target_config.get(YC.SOURCE_TYPE_KEY)
-                        source_id = target_config.get(YC.SOURCE_ID_KEY)
-                        df = self._get_source_df(source_id, source_type)
-                    writer = df.write.mode(write_mode).options(**options)
-                    writer.saveAsTable(table_name)
-                self._log_latest_operation_metrics(table_name)
-            elif write_type == YC.WRITE_TYPE_STREAM:
-                self.logger.info(f"Writing DataFrame to target stream with table_id: {table_id}")
-                checkpoint = self._get_checkpoint_location(table_id)
-                if not checkpoint:
-                    raise ValueError(f"Checkpoint location is missing for table_id: {table_id}")
-                # Get or create DataFrame
-                if df is None:
-                    source_type = target_config.get(YC.SOURCE_TYPE_KEY)
-                    source_id = target_config.get(YC.SOURCE_ID_KEY)
-                    df = self._get_source_df(source_id, source_type)
-                    
-                query_prefix = self.global_config.get(YC.QUERY_NAME_PREFIX_KEY, "default_query")
-                query_name = f"{query_prefix}_{table_id}"
-                
-                # Check for for_each_batch_function
-                for_each_batch_function_name = target_config.get(YC.FOR_EACH_BATCH_FUNCTION_KEY)
-                # Start streaming query
-                try:
-                    options = target_config.get("options", {})
-                    options.update({"checkpointLocation": checkpoint})
-                    # Extract the trigger option
-                    trigger_option = options.get("trigger", "once")  # Default to "once" if not specified
 
-                    query = df.writeStream \
-                            .outputMode(write_mode) \
-                            .options(**options) \
-                            .queryName(query_name)
-                    # Resolve the function if it's provided as a string
-                    if for_each_batch_function_name and isinstance(for_each_batch_function_name, str):
-                        for_each_batch_function: Callable[[DataFrame, int], None]  = self._resolve_function(for_each_batch_function_name)
-                        # Log the function name
-                        function_name = getattr(for_each_batch_function, "__name__", str(for_each_batch_function))
-                        self.logger.info(f"Using for_each_batch_function '{function_name}' for table: {table_name}")
-                        if not callable(for_each_batch_function):
-                            raise ValueError(f"The provided for_each_batch_function '{for_each_batch_function}' is not a function, provide provide function name.")
-                        query = query.foreachBatch(for_each_batch_function) 
-
-                    # Apply the trigger if specified
-                    if trigger_option:
-                        if trigger_option.startswith("processingTime="):
-                            interval = trigger_option.split("=")[1].strip()
-                            query = query.trigger(processingTime=interval)
-                        elif trigger_option == "once":
-                            query = query.trigger(once=True)
-                        elif trigger_option.startswith("continuous="):
-                            interval = trigger_option.split("=")[1].strip()
-                            query = query.trigger(continuous=interval)
-        
-                    self.logger.info(f"Starting streaming query for table: {table_name} with query name: {query_name}")
-                    self.logger.debug(f"Streaming query options: {options}")
-                
-                    streaming_query =query.toTable(table_name)            
-                    # Continuously monitor streaming progress with a delay
-                    while streaming_query.isActive:
-                        last_progress = streaming_query.lastProgress
-                        if last_progress and "numOutputRows" in last_progress:
-                            num_records = last_progress["numOutputRows"]
-                            self.logger.info(f"Records written in last batch: {num_records}")
-                        else:
-                            self.logger.info("No new records processed yet.")
-                        time.sleep(5)  # Sleep for 5 seconds before checking again
-                        
-                    streaming_query.awaitTermination()
-                except Exception as e:
-                    self.logger.error(f"Error while running streaming query for table {table_name}: {str(e)}")
-                    raise
-                finally:
-                    if streaming_query and streaming_query.isActive:
-                        streaming_query.stop()
-                        self.logger.info(f"Streaming query stopped for table: {table_name}")
-           
+        if write_type == YC.WRITE_TYPE_TABLE:
+            self.logger.debug(f"Writing DataFrame to target table with table_id: {table_id}")
+            if write_mode == YC.WRITE_MODE_MERGE:
+                self.merge_into_target(table_id, df)
             else:
-                raise ValueError(f"Unsupported write type: {write_type}")
+                writer = df.write.mode(write_mode).options(**options)
+                writer.saveAsTable(table_name)
+            self._log_latest_operation_metrics(table_name)
+        elif write_type == YC.WRITE_TYPE_STREAM:
+            self.logger.info(f"Writing DataFrame to target stream with table_id: {table_id}")
+            checkpoint = self._get_checkpoint_location(table_id)
+            if not checkpoint:
+                raise ValueError(f"Checkpoint location is missing for table_id: {table_id}")
 
-        
+            query_prefix = self.global_config.get(YC.QUERY_NAME_PREFIX_KEY, "default_query")
+            query_name = f"{query_prefix}_{table_id}"
+
+            # Check for for_each_batch_function
+            for_each_batch_function_name = target_config.get(YC.FOR_EACH_BATCH_FUNCTION_KEY)
+            # Set before the try so the finally block can check it even if the query never starts
+            streaming_query = None
+            # Start streaming query
+            try:
+                options = target_config.get("options", {})
+                options.update({"checkpointLocation": checkpoint})
+                # Extract the trigger option
+                trigger_option = options.get("trigger", "once")  # Default to "once" if not specified
+
+                query = df.writeStream \
+                        .outputMode(write_mode) \
+                        .options(**options) \
+                        .queryName(query_name)
+                # Resolve the function if it's provided as a string
+                if for_each_batch_function_name and isinstance(for_each_batch_function_name, str):
+                    for_each_batch_function: Callable[[DataFrame, int], None]  = self._resolve_function(for_each_batch_function_name)
+                    # Log the function name
+                    function_name = getattr(for_each_batch_function, "__name__", str(for_each_batch_function))
+                    self.logger.info(f"Using for_each_batch_function '{function_name}' for table: {table_name}")
+                    if not callable(for_each_batch_function):
+                        raise ValueError(f"The provided for_each_batch_function '{for_each_batch_function}' is not a function, provide provide function name.")
+                    query = query.foreachBatch(for_each_batch_function) 
+
+                # Apply the trigger if specified
+                if trigger_option:
+                    if trigger_option.startswith("processingTime="):
+                        interval = trigger_option.split("=")[1].strip()
+                        query = query.trigger(processingTime=interval)
+                    elif trigger_option == "once":
+                        query = query.trigger(once=True)
+                    elif trigger_option.startswith("continuous="):
+                        interval = trigger_option.split("=")[1].strip()
+                        query = query.trigger(continuous=interval)
+    
+                self.logger.info(f"Starting streaming query for table: {table_name} with query name: {query_name}")
+                self.logger.debug(f"Streaming query options: {options}")
+            
+                streaming_query =query.toTable(table_name)            
+                # Continuously monitor streaming progress with a delay
+                while streaming_query.isActive:
+                    last_progress = streaming_query.lastProgress
+                    if last_progress and "numOutputRows" in last_progress:
+                        num_records = last_progress["numOutputRows"]
+                        self.logger.info(f"Records written in last batch: {num_records}")
+                    else:
+                        self.logger.info("No new records processed yet.")
+                    time.sleep(5)  # Sleep for 5 seconds before checking again
+                    
+                streaming_query.awaitTermination()
+            except Exception as e:
+                self.logger.error(f"Error while running streaming query for table {table_name}: {str(e)}")
+                raise
+            finally:
+                if streaming_query and streaming_query.isActive:
+                    streaming_query.stop()
+                    self.logger.info(f"Streaming query stopped for table: {table_name}")
+       
+        else:
+            raise ValueError(f"Unsupported write type: {write_type}")
+
+    

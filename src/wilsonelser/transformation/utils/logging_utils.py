@@ -10,7 +10,7 @@ FORMATTER = logging.Formatter(
 
 # Top-level namespace; you can keep using class/module names, but we recommend
 # anchoring under a common prefix to allow centralized control, e.g., "dqx.*".
-DEFAULT_NAMESPACE = "integration"
+DEFAULT_NAMESPACE = "transformation"
 
 
 def _parse_level(level: Optional[str | int]) -> int:

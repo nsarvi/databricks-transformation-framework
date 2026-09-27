@@ -1,5 +1,6 @@
 from wilsonelser.transformation  import yaml_constants as YC
 from wilsonelser.transformation.base_integration import BaseIntegration
+from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from pyspark.sql import DataFrame
 from typing import Optional
 
@@ -29,7 +30,7 @@ class BaseDataTransformer(BaseIntegration):
                 self.logger.info(f"Initializing DataFrame from SQL file: {sql_file_path}")
                 try:
                     with open(sql_file_path, "r") as sql_file:
-                        sql_query = sql_file.read()
+                        sql_query = ConfigUtils.resolve_text(sql_file.read(), self.env_vars)
                     df = self.spark.sql(sql_query)
                 except Exception as e:
                     self.logger.error(f"Failed to initialize DataFrame from SQL file: {sql_file_path}. Error: {e}")

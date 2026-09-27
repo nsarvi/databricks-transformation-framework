@@ -8,6 +8,10 @@ import unittest
 from datetime import datetime
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -41,7 +45,7 @@ class TestDataTransformer(unittest.TestCase):
  
         transformed_df = transformer.apply_transformations(transformation_id, self.sample_dataframe)
         
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
  
         # Ensures row count is unchanged
         self.assertEqual(transformed_df.count(), self.sample_dataframe.count()) 

@@ -19,7 +19,7 @@ SELECT
     s.total_amount,
     s.transaction_date_mapics,
     s.payment_method_mapics
-FROM sandbox.integration_framework.customer_mapics c
-JOIN sandbox.integration_framework.sales_mapics s
+FROM ${catalog}.${schema}.customer_mapics c
+JOIN ${catalog}.${schema}.sales_mapics s
 ON c.customer_id = s.customer_id_mapics
 WHERE s.total_amount > 30

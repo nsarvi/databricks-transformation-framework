@@ -1,6 +1,6 @@
 targets:
   - table_id: "target_customer_no_schema"
-    table: "sandbox.integration_framework.no_schema_customer_cluster_by"
+    table: "${catalog}.${schema}.no_schema_customer_cluster_by"
     write_type: "table"
     write_mode: "append"
     cluster_by: ["customer_region"] # Clustering and partitioning cannot both be specified

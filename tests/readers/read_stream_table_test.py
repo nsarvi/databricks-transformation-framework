@@ -15,7 +15,10 @@ from typing import Optional
 from wilsonelser.transformation.data_transformer import DataTransformer
 from wilsonelser.transformation.table_writer import TableWriter
 from wilsonelser.transformation.table_reader import TableReader
-import logging
+import pytest
+from integration_env import table_name
+
+pytestmark = pytest.mark.integration
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -25,11 +28,7 @@ class TestDataTransformer(unittest.TestCase):
         self.spark = TableReader._get_spark()
 
     def setUp(self):
-         # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('wilsonelser.transformation')
-        logger.setLevel(logging.DEBUG)
-        self.table_name_customer_stream = "sandbox.integration_framework.customer_mapics_stream_1"
+        self.table_name_customer_stream = table_name("customer_mapics_stream_1")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_customer_stream}")
        # Create test data for adm_customer_mapics table
         customer_schema = StructType([

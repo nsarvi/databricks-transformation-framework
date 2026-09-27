@@ -3,7 +3,7 @@ sources:
   - source_id: "sapitmxref_subquery"
     subquery: |
       SELECT customer_id, SUM(customer_loyalty_points) AS total_loyalty_points
-        FROM sandbox.integration_framework.customer_mapics
+        FROM ${catalog}.${schema}.customer_mapics
         GROUP BY customer_id
     transformation_id: "transformation_id_1"
 

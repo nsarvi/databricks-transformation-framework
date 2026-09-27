@@ -15,7 +15,13 @@ from typing import Optional
 from wilsonelser.transformation.data_transformer import DataTransformer
 from wilsonelser.transformation.table_writer import TableWriter
 from wilsonelser.transformation.table_reader import TableReader
-import logging
+import pytest
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+from integration_env import table_name
+
+logger = LoggingHandler(__name__).get_logger()
+pytestmark = pytest.mark.integration
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -23,14 +29,10 @@ class TestDataTransformer(unittest.TestCase):
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
         self.spark = TableReader._get_spark()
-        self.table_name_customer_mapics="sandbox.integration_framework.customer_mapics"
+        self.table_name_customer_mapics=table_name("customer_mapics")
 
              
     def setUp(self):
-         # Enable the logger to debug level
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger('wilsonelser.transformation')
-        logger.setLevel(logging.DEBUG)
        
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_customer_mapics}")
        # Create test data for adm_customer_mapics table
@@ -80,7 +82,7 @@ class TestDataTransformer(unittest.TestCase):
         subquery_df = table_reader.read_source_table("sapitmxref_subquery")
         
         # Show the result for debugging
-        print(subquery_df.show())
+        logger.info("subquery_df:\n%s", df_to_string(subquery_df))
 
         # 1. Validate that the DataFrame is not empty
         self.assertGreater(subquery_df.count(), 0, "The subquery DataFrame is empty.")

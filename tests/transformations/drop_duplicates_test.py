@@ -10,6 +10,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformerDropDuplicates(unittest.TestCase):
 
@@ -50,7 +54,7 @@ class TestDataTransformerDropDuplicates(unittest.TestCase):
         transformation_id = "transformation_id_1"
         
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
         
         # Check if the DataFrame has duplicates removed based on specified columns
         expected_data = [
@@ -75,7 +79,7 @@ class TestDataTransformerDropDuplicates(unittest.TestCase):
         transformation_id = "transformation_id_2"
         
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)
-        print(transformed_df.show())
+        logger.info("transformed_df:\n%s", df_to_string(transformed_df))
         
         # Check if the DataFrame has duplicates removed based on specified columns
         expected_data = [

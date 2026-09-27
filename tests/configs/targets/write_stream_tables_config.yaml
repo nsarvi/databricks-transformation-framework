@@ -1,17 +1,17 @@
 # Configurations for the target table(s) for stream
 global_config:
-   base_checkpoint_location: "/Volumes/sandbox/integration_framework/adm_integration_checkpoints"
+   base_checkpoint_location: "/Volumes/${catalog}/${schema}/checkpoints"
    query_name_prefix: "adm_stream_query"
 
 sources:
   - source_id: "source_customer_stream_1"
-    table: "sandbox.integration_framework.customer_mapics_stream_1"
+    table: "${catalog}.${schema}.customer_mapics_stream_1"
     read_type: "stream"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
 # Configurations for the target table(s) for stream
 targets:
   - table_id: "target_customer_stream_1"
-    table: "sandbox.integration_framework.adm_target_customer_stream_1"
+    table: "${catalog}.${schema}.adm_target_customer_stream_1"
     write_type: "stream"
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
     cluster_by: ["Customer_Number"]
@@ -25,7 +25,7 @@ targets:
 
 
   - table_id: "target_customer_stream_1_processing_time"
-    table: "sandbox.integration_framework.adm_target_customer_stream_1"
+    table: "${catalog}.${schema}.adm_target_customer_stream_1"
     write_type: "stream"
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
     cluster_by: ["Customer_Number"]
@@ -39,7 +39,7 @@ targets:
 
 # Configurations for the target table(s) for stream - For each batch function
   - table_id: "target_customer_stream_2"
-    table: "sandbox.integration_framework.adm_target_customer_stream_1"
+    table: "${catalog}.${schema}.adm_target_customer_stream_1"
     write_type: "stream"
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
     cluster_by: ["Customer_Number"]

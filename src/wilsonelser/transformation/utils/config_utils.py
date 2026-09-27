@@ -15,15 +15,34 @@ class ConfigUtils:
     """Utility class for handling configuration and schema loading."""
 
 
+    PLACEHOLDER_PATTERN = re.compile(r"\$\{([^}]+)\}")
+
+    @staticmethod
+    def _lookup_placeholder(name: str, env_vars: dict) -> str:
+        """Returns the value for a ${name} placeholder: the env config file first, then environment variables."""
+        if name in env_vars and env_vars[name] is not None:
+            return str(env_vars[name])
+        if name in os.environ:
+            return os.environ[name]
+        raise ValueError(
+            f"No value for placeholder '${{{name}}}'. Set it in the env config file or as an environment variable."
+        )
+
+    @staticmethod
+    def resolve_text(text: str, env_vars: Optional[dict] = None) -> str:
+        """Replaces ${name} placeholders in a string, e.g. the contents of a SQL file."""
+        env_vars = env_vars or {}
+        return ConfigUtils.PLACEHOLDER_PATTERN.sub(
+            lambda m: ConfigUtils._lookup_placeholder(m.group(1), env_vars), text
+        )
+
     @staticmethod
     def _resolve_placeholders(config: dict, env_vars: dict) -> dict:
-        """Recursively replace placeholders like {catalog} or ${catalog} with env values."""
-        pattern_dollar = re.compile(r"\$\{([^}]+)\}")
+        """Recursively replace ${name} placeholders with values from the env config file or environment variables."""
 
         def substitute(value):
             if isinstance(value, str):
-                value = pattern_dollar.sub(lambda m: env_vars.get(m.group(1), m.group(0)), value)
-                return value
+                return ConfigUtils.resolve_text(value, env_vars)
             elif isinstance(value, dict):
                 return {k: substitute(v) for k, v in value.items()}
             elif isinstance(value, list):
@@ -39,14 +58,15 @@ class ConfigUtils:
 
 
     @staticmethod
-    def _load_env_variables(env_config_file: Optional[str] = None) -> Dict:
+    def load_env_variables(env_config_file: Optional[str] = None) -> Dict:
+        """Loads placeholder values from the env config file; returns an empty dict when none is given."""
         if not env_config_file:
-            raise ValueError("env_config_file must be provided.")
-        
+            return {}
+
         env_file_path = ConfigUtils._resolve_path(env_config_file)
 
         with open(env_file_path, "r") as f:
-            return yaml.safe_load(f)
+            return yaml.safe_load(f) or {}
 
     @staticmethod
     def _has_placeholders(obj) -> bool:
@@ -109,7 +129,7 @@ class ConfigUtils:
             config = yaml.safe_load(f)
 
         if ConfigUtils._has_placeholders(config):
-            env_vars = ConfigUtils._load_env_variables(env_config_file)
+            env_vars = ConfigUtils.load_env_variables(env_config_file)
             config = ConfigUtils._resolve_placeholders(config, env_vars)
 
         return config

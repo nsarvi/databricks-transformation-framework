@@ -1,7 +1,7 @@
 
 targets:
   - table_id: "source_customer_stream_1"
-    table: "sandbox.integration_framework.customer_mapics_stream_1"
+    table: "${catalog}.${schema}.customer_mapics_stream_1"
     write_type: "table"
     write_mode: "append"
     partition_by: ["customer_region"] # Clustering and partitioning cannot both be specified

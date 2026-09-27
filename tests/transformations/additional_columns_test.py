@@ -10,6 +10,10 @@ from datetime import datetime
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.utils.logging_utils import LoggingHandler
+from log_helpers import df_to_string
+
+logger = LoggingHandler(__name__).get_logger()
 
 class TestDataTransformer(unittest.TestCase):
 
@@ -17,6 +21,7 @@ class TestDataTransformer(unittest.TestCase):
     def setUpClass(cls):
         """Creates a Spark session  that will be used across all tests."""
         cls.spark = BaseDataTransformer._get_spark()
+        logger.info("Spark session created: %s", cls.spark)
 
     def setUp(self):
         """Creates a reusable DataFrame  with 10 rows."""
@@ -45,13 +50,15 @@ class TestDataTransformer(unittest.TestCase):
         expected_date = datetime.now().date()
         expected_region_empty=''
      
+        logger.info("Applying transformation_id: %s", transformation_id)
         transformed_df = transformer.apply_transformations(transformation_id, self.sample_dataframe,)
         # Get the first row of the DataFrame
         first_row:Optional[Row] = transformed_df.select("processed_date","region").first()
         processed_date_value = first_row['processed_date'].date() # type: ignore
         region_value=first_row['region'] # type: ignore
-        
-        print(transformed_df.show())
+
+        logger.info("Transformed columns: %s", transformed_df.columns)
+        logger.info("Transformed DataFrame:\n%s", df_to_string(transformed_df))
         # assertions on the additional column values
         # Ensures row count is unchanged
         self.assertEqual(transformed_df.count(), self.sample_dataframe.count()) 

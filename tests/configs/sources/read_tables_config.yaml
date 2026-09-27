@@ -1,12 +1,12 @@
 # Configurations for the source table(s)
 sources:
   - source_id: "source_1"
-    table: "sandbox.integration_framework.customer_mapics"
+    table: "${catalog}.${schema}.customer_mapics"
     transformation_id: "transformation_id_1"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
   - source_id: "source_2"
-    table: "sandbox.integration_framework.sales_mapics"
+    table: "${catalog}.${schema}.sales_mapics"
     transformation_id: "transformation_id_2"
     read_type: "table"  # Options: "table" for static table, "stream" for streaming source, "cdf" for Change Data Feed
 
