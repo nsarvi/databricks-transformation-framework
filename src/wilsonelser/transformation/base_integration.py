@@ -2,7 +2,6 @@ import importlib
 from typing import Any, Callable, Dict, List, Optional, cast
 import re
 
-from databricks.connect import DatabricksSession
 from pyspark.sql import DataFrame, SparkSession, Column
 from pyspark.sql import functions as F
 
@@ -27,16 +26,15 @@ class BaseIntegration:
     def _get_spark() -> SparkSession:
         logger = LoggingHandler(__name__).get_logger()
         try:
+            # Imported here so the package still loads where databricks-connect isn't installed,
+            # e.g. when the wheel runs as a job task on a cluster
+            from databricks.connect import DatabricksSession
             return DatabricksSession.builder.getOrCreate()
-        except ImportError as ir:
-            logger.error(
-                f"Error while importing Databricks Connect library {ir.__cause__}"
-            )
+        except ImportError:
+            logger.info("Databricks Connect not available, using the active SparkSession")
             return SparkSession.builder.getOrCreate()
         except Exception as e:
-            logger.error(
-                f"Error while getting SparkSession via Databricks Connect {e.__cause__}"
-            )
+            logger.error("Error while getting SparkSession via Databricks Connect: %s", e)
             return SparkSession.builder.getOrCreate()
 
     def _load_global_config(self) -> dict:

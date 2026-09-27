@@ -137,14 +137,8 @@ class ConfigUtils:
    
     @staticmethod
     def get_schema(schema_file: str) -> StructType:
-        """Loads schema from JSON file."""
-        # Get the absolute path of the current module
-        module_path = Path(__file__).resolve()
-        relative_schema_file = module_path.parent.parent.parent.parent.parent / schema_file
+        """Loads schema from JSON file, found the same way as config files (absolute path, sys.path, then cwd)."""
+        schema_path = ConfigUtils._resolve_path(schema_file)
 
-        if not os.path.exists(relative_schema_file):
-            logger.error(f"Schema file not found: {relative_schema_file}")
-            raise FileNotFoundError(f"Schema file not found: {relative_schema_file}")
-
-        with open(relative_schema_file) as file:
+        with open(schema_path) as file:
             return StructType.fromJson(json.load(file))

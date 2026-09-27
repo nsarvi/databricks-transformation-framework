@@ -38,3 +38,6 @@ scratch/**
 *.code-workspace
 .idea/
 .DS_Store
+
+# Backup files (e.g. from databricks environments setup-local)
+*.bak

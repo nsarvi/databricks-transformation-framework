@@ -56,4 +56,6 @@ def integration_schema(request):
         logger.info("Keeping test schema %s.%s (TEST_SCHEMA is set)", catalog, schema)
     else:
         logger.info("Dropping test schema %s.%s", catalog, schema)
+        # Get the session again in case a test stopped the shared one
+        spark = BaseIntegration._get_spark()
         spark.sql(f"DROP SCHEMA IF EXISTS `{catalog}`.`{schema}` CASCADE")

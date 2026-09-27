@@ -73,10 +73,6 @@ class TestSQLTransformations(unittest.TestCase):
         # Write the DataFrame to the table using TableWriter
         writer.write_table("source_sales_mapics", cls.sales_df)
 
-    @classmethod
-    def tearDownClass(cls):
-        """Stops the Spark session after all tests."""
-        cls.spark.stop()
 
     def test_sql_transformation(self):
         """Tests the SQL transformation using a configuration file."""

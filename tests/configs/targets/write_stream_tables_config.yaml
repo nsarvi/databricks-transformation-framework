@@ -14,7 +14,7 @@ targets:
     table: "${catalog}.${schema}.adm_target_customer_stream_1"
     write_type: "stream"
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
-    cluster_by: ["Customer_Number"]
+    cluster_by: ["customer_id"]
     options:
       trigger: "once"  # Trigger interval for streaming (once=True or processingTime=10 seconds or continuous) 
       mergeSchema: "true"
@@ -28,7 +28,7 @@ targets:
     table: "${catalog}.${schema}.adm_target_customer_stream_1"
     write_type: "stream"
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
-    cluster_by: ["Customer_Number"]
+    cluster_by: ["customer_id"]
     options:
       trigger: "processingTime=10 seconds"  # Trigger interval for streaming (once=True or processingTime=10 seconds or continuous) 
       mergeSchema: "true"
@@ -42,7 +42,7 @@ targets:
     table: "${catalog}.${schema}.adm_target_customer_stream_1"
     write_type: "stream"
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
-    cluster_by: ["Customer_Number"]
+    cluster_by: ["customer_id"]
     for_each_batch_function: "path.to.module.for_each_batch_function"
     options:
       trigger: "processingTime=10 seconds"
