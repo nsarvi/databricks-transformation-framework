@@ -29,7 +29,7 @@ class BaseDataTransformer(BaseIntegration):
                 sql_file_path = transformation_config[YC.TRANSFORMATION_SQL_FILE_KEY]
                 self.logger.info(f"Initializing DataFrame from SQL file: {sql_file_path}")
                 try:
-                    with open(sql_file_path, "r") as sql_file:
+                    with open(ConfigUtils._resolve_path(sql_file_path), "r") as sql_file:
                         sql_query = ConfigUtils.resolve_text(sql_file.read(), self.env_vars)
                     df = self.spark.sql(sql_query)
                 except Exception as e:
