@@ -1,0 +1,28 @@
+# Test job for the Expert Sierra Raw -> Bronze load (use_cases/expert_sierra/bronze_load.ipynb).
+# The notebook takes no parameters: the environment comes from config/env/environments.yaml and the tables
+# from config/bronze_tables.yml. No schedule: run it with
+#   databricks bundle run expert_sierra_bronze_job --target dev --profile <profile>
+resources:
+  jobs:
+    expert_sierra_bronze_job:
+      name: expert_sierra_bronze_load
+
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+
+      tasks:
+        - task_key: bronze_load
+          job_cluster_key: bronze_cluster
+          notebook_task:
+            notebook_path: ../bronze_load.ipynb
+
+      job_clusters:
+        - job_cluster_key: bronze_cluster
+          new_cluster:
+            spark_version: 18.x-scala2.13
+            node_type_id: Standard_D3_v2
+            data_security_mode: SINGLE_USER     # Unity Catalog access for the Raw and Bronze tables
+            autoscale:
+              min_workers: 1
+              max_workers: 4

@@ -27,8 +27,8 @@ Connect, which replaces the local `pyspark` package. There is no local Spark.
 - **The client must not be newer than the cluster.** `databricks-connect` is pinned to `==18.0.*` in
   `pyproject.toml`, which works with any Runtime 18 cluster. A newer client (for example 18.3 against an
   18 LTS cluster) can hang on some requests instead of failing.
-- **When the cluster runtime changes,** update the pin, the `requires-python` comment and the job's
-  `spark_version` in `resources/wilsonelser_dtf.job.yml` together, then run the integration tests.
+- **When the cluster runtime changes,** update the pin, the `requires-python` comment and the
+  `spark_version` of the test jobs in `use_cases/*/resources/` together, then run the integration tests.
 - **`[tool.uv] constraint-dependencies`** in `pyproject.toml` is managed by
   `databricks environments setup-local` and keeps local libraries on the cluster's versions. Don't edit it
   by hand.
@@ -85,8 +85,8 @@ src/wilsonelser/transformation/    the framework (the only code in the wheel)
   utils/config_utils.py            YAML loading, ${placeholder} resolution, path lookup, schema files
   utils/logging_utils.py           LoggingHandler
 config/env/                        environments.yaml (workspace per environment) and <env>.yaml values
-use_cases/                         real pipelines, their notebooks and custom functions
-resources/                         bundle job definitions
+use_cases/                         example and test pipelines (real ones live in the pipeline repo);
+                                   each can have a resources/ folder with its test jobs
 tests/                             unit and integration tests, see Testing
 docs/                              these guides
 ```
@@ -212,18 +212,18 @@ uv build --wheel      # dist/wilsonelser_dtf-<version>-py3-none-any.whl
 The wheel contains only `src/wilsonelser` and depends only on `pyyaml`. Spark, Delta and the Databricks
 SDK come from the runtime. `python -m build` isn't set up; use `uv build`.
 
-**Deploy with the bundle.** `databricks.yml` builds the wheel with `uv build --wheel` and attaches it to
-the job in `resources/wilsonelser_dtf.job.yml`.
+**The bundle.** This repo deploys no production jobs; the wheel is the deliverable. `databricks.yml` is used
+by the Databricks VS Code extension to connect to the workspace, and to deploy test jobs for the example
+pipelines, which live next to them in `use_cases/<use case>/resources/*.yml`. For example, to run the Expert
+Sierra Bronze test job:
 
 ```bash
 databricks bundle validate --strict --target dev --profile <profile>
 databricks bundle deploy --target dev --profile <profile>
-databricks bundle run wilsonelser_dtf_job --target dev --profile <profile>
+databricks bundle run expert_sierra_bronze_job --target dev --profile <profile>
 ```
 
-The job's `python_wheel_task` calls the `main` entry point (`wilsonelser.main:main`). That entry point is
-still the bundle template's placeholder and needs to become a real runner (config path and env file as
-parameters) before the job is useful.
+The wheel has no entry points; pipelines import it.
 
 ## Conventions
 
@@ -253,4 +253,3 @@ Found in code review and not fixed yet. Fix them test-first, and update the
 |---|---|
 | Joins return only aliases listed in `select_columns`; with none, the select is empty | `DataTransformer._select_final_columns` |
 | `apply_unions` expects `unions` to be a mapping, but `tests/configs/transformers/union_config.yaml` uses a list. `union_test.py` passes only because it replaces `combine_lookup` | `data_transformer.py`, `union_config.yaml` |
-| `main.py` is the bundle template placeholder (reads `samples.nyctaxi.trips`) | `src/wilsonelser/main.py` |

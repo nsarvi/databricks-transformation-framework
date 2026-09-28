@@ -2,7 +2,7 @@
 
 These tests never read data: they load every config in use_cases/ and config/env/ with dummy values
 for ${...} placeholders, so YAML errors and missing ids are caught before a job runs.
-Backup folders (bkp/) are not real pipelines and are skipped.
+Backup folders (bkp/) and bundle job definitions (resources/) are not pipeline configs and are skipped.
 """
 import re
 from pathlib import Path
@@ -14,7 +14,9 @@ from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PIPELINE_CONFIGS = sorted(p for p in (REPO_ROOT / "use_cases").rglob("*.yml") if "bkp" not in p.parts)
+PIPELINE_CONFIGS = sorted(
+    p for p in (REPO_ROOT / "use_cases").rglob("*.yml") if "bkp" not in p.parts and "resources" not in p.parts
+)
 ENV_CONFIGS = sorted((REPO_ROOT / "config" / "env").glob("*.yaml"))
 
 # Each config section and the id key the framework's lookups require on every entry

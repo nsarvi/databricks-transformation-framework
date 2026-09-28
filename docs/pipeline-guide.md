@@ -4,6 +4,10 @@ For data engineers who build pipelines with the framework: you write a YAML conf
 reads the source tables, transforms them, and writes the result to Delta tables.
 To change the framework itself, see the [developer guide](developer-guide.md).
 
+**Where pipelines live.** Pipelines are built in their own repo, which installs the framework wheel. This
+guide's layout and conventions are for that repo. The framework repo's `use_cases/` folder only holds
+examples and test pipelines.
+
 - [How a pipeline works](#how-a-pipeline-works)
 - [Your first pipeline](#your-first-pipeline)
 - [Organizing a pipeline](#organizing-a-pipeline)
@@ -118,7 +122,7 @@ both sources), creates `customer_sales` if it doesn't exist, and runs the merge.
 
 ## Organizing a pipeline
 
-Keep each pipeline's files together under `use_cases/<domain>/`, and shared code in
+In the pipeline repo, keep each pipeline's files together under `use_cases/<domain>/`, and shared code in
 `use_cases/custom_transformations/`:
 
 ```
@@ -238,8 +242,9 @@ classes.
 
 **Installing the framework.**
 
-- **Jobs:** `databricks bundle deploy` builds the wheel and attaches it to the job. See the
-  [developer guide](developer-guide.md#build-and-deploy).
+- **Jobs:** define them in the pipeline repo's bundle, next to the pipeline
+  (`use_cases/<domain>/resources/<name>.job.yml`), running the pipeline's notebook. The notebook installs the
+  wheel as below.
 - **Notebooks:** install the released wheel from the shared libraries folder, then restart Python:
 
   ```python

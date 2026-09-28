@@ -4,7 +4,9 @@ bundle:
   name: wilsonelser_dtf
 
 include:
-  - resources/*.yml
+  # Jobs used to test the framework with a use case live next to it, in use_cases/<use case>/resources/.
+  # Production pipelines and their jobs belong in the pipeline repo, not here.
+  - use_cases/*/resources/*.yml
 
 artifacts:
   python_artifact:
