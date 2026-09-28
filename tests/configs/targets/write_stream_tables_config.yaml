@@ -16,7 +16,7 @@ targets:
     write_mode: "append"  # Stream write mode is typically "append", "update", or "complete"
     cluster_by: ["customer_id"]
     options:
-      trigger: "once"  # Trigger interval for streaming (once=True or processingTime=10 seconds or continuous) 
+      trigger: "availableNow"  # availableNow (default), processingTime=<interval> or continuous=<interval>
       mergeSchema: "true"
       overwriteSchema: "true"
     table_properties:

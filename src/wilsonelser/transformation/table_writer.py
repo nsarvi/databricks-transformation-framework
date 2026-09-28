@@ -24,6 +24,25 @@ class TableWriter(DataTransformer):
         module = importlib.import_module(module_name)
         return getattr(module, function_name)
 
+    def _apply_trigger(self, writer, trigger_option: Optional[str]):
+        """Applies the target's `trigger` option to a streaming writer.
+
+        availableNow (the default) processes all available data and stops. "once" is deprecated in Spark and
+        runs as availableNow. processingTime=<interval> and continuous=<interval> keep the query running.
+        """
+        if trigger_option is None or trigger_option == "availableNow":
+            return writer.trigger(availableNow=True)
+        if trigger_option == "once":
+            self.logger.warning("Trigger 'once' is deprecated in Spark; running as 'availableNow'. Update the config.")
+            return writer.trigger(availableNow=True)
+        if trigger_option.startswith("processingTime="):
+            return writer.trigger(processingTime=trigger_option.split("=", 1)[1].strip())
+        if trigger_option.startswith("continuous="):
+            return writer.trigger(continuous=trigger_option.split("=", 1)[1].strip())
+        raise ValueError(
+            f"Unsupported trigger '{trigger_option}'. Use availableNow, processingTime=<interval> or continuous=<interval>"
+        )
+
     def _get_table_schema(self, table_id: str, df: Optional[DataFrame] = None) -> StructType:
         # Get the table schema in the following order of preference
         # 1) Schema config file defined
@@ -224,10 +243,10 @@ class TableWriter(DataTransformer):
             streaming_query = None
             # Start streaming query
             try:
-                options = target_config.get("options", {})
-                options.update({"checkpointLocation": checkpoint})
-                # Extract the trigger option
-                trigger_option = options.get("trigger", "once")  # Default to "once" if not specified
+                # Copy the options so the loaded config isn't changed; `trigger` configures the query, not the writer
+                options = dict(target_config.get(YC.OPTIONS_KEY, {}))
+                trigger_option = options.pop("trigger", None)
+                options["checkpointLocation"] = checkpoint
 
                 query = df.writeStream \
                         .outputMode(write_mode) \
@@ -243,17 +262,8 @@ class TableWriter(DataTransformer):
                         raise ValueError(f"The provided for_each_batch_function '{for_each_batch_function}' is not a function, provide provide function name.")
                     query = query.foreachBatch(for_each_batch_function) 
 
-                # Apply the trigger if specified
-                if trigger_option:
-                    if trigger_option.startswith("processingTime="):
-                        interval = trigger_option.split("=")[1].strip()
-                        query = query.trigger(processingTime=interval)
-                    elif trigger_option == "once":
-                        query = query.trigger(once=True)
-                    elif trigger_option.startswith("continuous="):
-                        interval = trigger_option.split("=")[1].strip()
-                        query = query.trigger(continuous=interval)
-    
+                query = self._apply_trigger(query, trigger_option)
+
                 self.logger.info(f"Starting streaming query for table: {table_name} with query name: {query_name}")
                 self.logger.debug(f"Streaming query options: {options}")
             
