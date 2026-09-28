@@ -1,0 +1,5 @@
+# The Databricks workspace of each environment (one workspace per environment).
+# Notebooks find their environment by looking up their own workspace URL here, then load config/env/<env>.yaml.
+dev: adb-7405613624754030.10.azuredatabricks.net
+# uat: <workspace url>
+# prod: <workspace url>

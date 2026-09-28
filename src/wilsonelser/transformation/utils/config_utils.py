@@ -16,6 +16,42 @@ class ConfigUtils:
 
 
     PLACEHOLDER_PATTERN = re.compile(r"\$\{([^}]+)\}")
+    # Maps each environment to its Databricks workspace; env config files sit next to it as <env>.yaml
+    ENVIRONMENTS_FILE = "config/env/environments.yaml"
+
+    @staticmethod
+    def _normalize_workspace_url(url: str) -> str:
+        return re.sub(r"^https?://", "", str(url).strip()).rstrip("/").lower()
+
+    @staticmethod
+    def _current_workspace_url() -> str:
+        # Imported here: base_integration imports this module
+        from wilsonelser.transformation.base_integration import BaseIntegration
+        return BaseIntegration._get_spark().conf.get("spark.databricks.workspaceUrl")
+
+    @staticmethod
+    def current_env(workspace_url: Optional[str] = None, environments_file: str = ENVIRONMENTS_FILE) -> str:
+        """Returns the environment (e.g. "dev") whose workspace is the current one.
+
+        Looks up the workspace URL, from the Spark session unless given, in the environments file
+        (one `<env>: <workspace url>` line per environment).
+        """
+        workspace_url = workspace_url or ConfigUtils._current_workspace_url()
+        with open(ConfigUtils._resolve_path(environments_file)) as f:
+            environments = yaml.safe_load(f) or {}
+        workspace = ConfigUtils._normalize_workspace_url(workspace_url)
+        matches = [env for env, url in environments.items() if url and ConfigUtils._normalize_workspace_url(url) == workspace]
+        if len(matches) != 1:
+            raise ValueError(
+                f"Workspace {workspace_url} must be listed exactly once in {environments_file}, found: {matches}"
+            )
+        return matches[0]
+
+    @staticmethod
+    def env_config_file(workspace_url: Optional[str] = None, environments_file: str = ENVIRONMENTS_FILE) -> str:
+        """Returns the env config file for the current workspace, e.g. "config/env/dev.yaml"."""
+        env = ConfigUtils.current_env(workspace_url, environments_file)
+        return str(Path(environments_file).parent / f"{env}.yaml")
 
     @staticmethod
     def _lookup_placeholder(name: str, env_vars: dict) -> str:

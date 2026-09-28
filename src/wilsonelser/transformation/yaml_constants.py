@@ -3,14 +3,6 @@ GLOBAL_CONFIG_KEY = "global_config"
 BASE_CHECKPOINT_LOCATION_KEY = "base_checkpoint_location"
 QUERY_NAME_PREFIX_KEY = "query_name_prefix"
 
-# Environment Variables
-ACTIVE_ENV_KEY = "active_env"
-ENV_FILES_KEY = "env_files"
-DEV_ENV_FILE_KEY = "dev"
-UAT_ENV_FILE_KEY = "uat"
-PROD_ENV_FILE_KEY = "prod"
-
-
 # Sources section keys
 SOURCES_KEY = "sources"
 TABLE_ID_KEY = "table_id"
