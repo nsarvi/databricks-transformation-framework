@@ -273,9 +273,9 @@ class BaseIntegration:
         column_renames: List[Dict[str, str]],
     ) -> Callable[[DataFrame], DataFrame]:
         """
-        Returns a callable function that applies column renaming to a DataFrame.
+        Returns a callable function that renames columns one by one.
 
-        :param column_renames: List of column renaming mappings (dictionaries with old_name and new_name)
+        :param column_renames: List of renames, each {"column": <current name>, "target_column": <new name>}
         :return: A callable function that transforms a DataFrame
         """
 
@@ -294,9 +294,9 @@ class BaseIntegration:
         columns_mapping: Dict[str, str],
     ) -> Callable[[DataFrame], DataFrame]:
         """
-        Returns a callable function that applies column renaming to a DataFrame.
+        Returns a callable function that renames columns from a mapping of old name to new name.
 
-        :param column_renames: List of column renaming mappings (dictionaries with old_name and new_name)
+        :param columns_mapping: Mapping of existing column names to new names, e.g. {"SDDOC": "invoice_number"}
         :return: A callable function that transforms a DataFrame
         """
 
@@ -314,9 +314,9 @@ class BaseIntegration:
         columns_expressions: Dict[str, str],
     ) -> Callable[[DataFrame], DataFrame]:
         """
-        Returns a callable function that applies column renaming to a DataFrame.
+        Returns a callable function that adds or replaces columns from SQL expressions.
 
-        :param column_renames: List of column renaming mappings (dictionaries with old_name and new_name)
+        :param columns_expressions: Mapping of column name to Spark SQL expression, e.g. {"order_id": "trim(order_id)"}
         :return: A callable function that transforms a DataFrame
         """
 
@@ -335,9 +335,9 @@ class BaseIntegration:
         columns_to_snake_case: bool,
     ) -> Callable[[DataFrame], DataFrame]:
         """
-        Returns a callable function that applies column renaming to a DataFrame.
+        Returns a callable function that renames every column to snake_case, e.g. CustomerID -> customer_id.
 
-        :param column_renames: List of column renaming mappings (dictionaries with old_name and new_name)
+        :param columns_to_snake_case: Whether to rename the columns; False leaves the DataFrame unchanged
         :return: A callable function that transforms a DataFrame
         """
 
@@ -355,9 +355,9 @@ class BaseIntegration:
         cols: List[str],
     ) -> Callable[[DataFrame], DataFrame]:
         """
-        Returns a callable function that applies column renaming to a DataFrame.
+        Returns a callable function that keeps only the given columns, in that order.
 
-        :param column_renames: List of column renaming mappings (dictionaries with old_name and new_name)
+        :param cols: Names of the columns to keep
         :return: A callable function that transforms a DataFrame
         """
 
