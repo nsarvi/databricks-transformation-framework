@@ -1,4 +1,14 @@
-# logging_utils.py
+"""Logging for the framework.
+
+Every framework logger lives under the `wilsonelser` namespace (the package name), so one setting controls
+them all. Logging is configured automatically the first time a LoggingHandler is created. Records always
+propagate to the host's logging (pytest, an app that called logging.basicConfig), and a console handler
+prints them only while the host has no handlers of its own (e.g. a Databricks notebook or job). This is
+decided per record, so it works whichever is configured first, and nothing is printed twice.
+
+The level comes from the DTF_LOG_LEVEL environment variable, INFO by default. Call configure_logging()
+to change level, handlers or propagation explicitly.
+"""
 import logging
 import os
 from typing import Optional
@@ -8,16 +18,25 @@ FORMATTER = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s - %(message)s"
 )
 
-# Top-level namespace; you can keep using class/module names, but we recommend
-# anchoring under a common prefix to allow centralized control, e.g., "dqx.*".
-DEFAULT_NAMESPACE = "transformation"
+DEFAULT_NAMESPACE = "wilsonelser"
+LOG_LEVEL_ENV_VAR = "DTF_LOG_LEVEL"
+
+_configured_namespaces: set = set()
+
+
+class _ConsoleWhenHostUnconfigured(logging.StreamHandler):
+    """Console handler that prints only while the root logger has no handlers, i.e. no host logging."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if not logging.getLogger().handlers:
+            super().emit(record)
 
 
 def _parse_level(level: Optional[str | int]) -> int:
     if isinstance(level, int):
         return level
     if isinstance(level, str):
-        val = logging.getLevelName(level.upper())
+        val = logging.getLevelName(level.strip().upper())
         if isinstance(val, int):
             return val
     return logging.INFO
@@ -27,103 +46,93 @@ def configure_logging(
     *,
     level: Optional[str | int] = None,
     stream: Optional[object] = None,
-    add_console_handler: bool = True,
+    add_console_handler: Optional[bool] = None,
     add_file_handler: bool = False,
     file_path: Optional[str] = None,
     file_mode: str = "a",
-    propagate: bool = False,
-    env_var: str = "DQX_LOG_LEVEL",
+    propagate: bool = True,
+    env_var: str = LOG_LEVEL_ENV_VAR,
     namespace: str = DEFAULT_NAMESPACE,
     formatter: logging.Formatter = FORMATTER,
 ) -> None:
     """
-    Configure the root namespace logger for the DQX framework. Call this ONCE
-    from the application to control logging for all framework modules.
+    Configures the framework's namespace logger. Runs automatically the first time a LoggingHandler is
+    created; call it yourself to override the defaults. Safe to call more than once.
 
     Parameters
     ----------
     level : str|int|None
-        Desired log level (e.g., "DEBUG", logging.INFO). If None, falls back to env var.
+        Log level (e.g. "DEBUG", logging.INFO). If None, read from `env_var`, else INFO.
     stream : file-like|None
-        Stream for console handler; defaults to sys.stderr if None.
-    add_console_handler : bool
-        Attach a StreamHandler if True (only if not already attached).
+        Stream for the console handler; sys.stderr if None.
+    add_console_handler : bool|None
+        None: attach a console handler that prints only while the host has no logging handlers.
+        True: attach one that always prints. False: no console handler. At most one is attached.
     add_file_handler : bool
-        Attach a FileHandler if True (only if not already attached).
+        Attach a file handler for `file_path` (at most one per path).
     file_path : str|None
-        Path to the log file (required if add_file_handler=True).
+        Path of the log file; required when add_file_handler=True.
     file_mode : str
-        File mode for FileHandler, default "a".
+        File mode for the file handler, default "a".
     propagate : bool
-        If True, allow logs to bubble to root (may duplicate if root has handlers).
+        Pass records on to the host's (root logger's) handlers; default True.
     env_var : str
-        Environment variable name to read level from when `level` is None.
+        Environment variable to read the level from when `level` is None.
     namespace : str
-        The root logger namespace (default "dqx").
+        The logger namespace to configure (default "wilsonelser").
     formatter : logging.Formatter
-        Formatter to apply to handlers (console/file).
+        Formatter for the handlers added here.
     """
-    if level is None:
-        level = os.getenv(env_var)
-    numeric_level = _parse_level(level)
+    numeric_level = _parse_level(level if level is not None else os.getenv(env_var))
 
-    root_logger = logging.getLogger(namespace)
-    root_logger.setLevel(numeric_level)
+    namespace_logger = logging.getLogger(namespace)
+    namespace_logger.setLevel(numeric_level)
+    namespace_logger.propagate = propagate
 
-    # Attach a console handler exactly once
-    if add_console_handler:
-        has_console = any(isinstance(h, logging.StreamHandler) for h in root_logger.handlers)
-        if not has_console:
-            ch = logging.StreamHandler(stream=stream)
-            ch.setLevel(numeric_level)
-            ch.setFormatter(formatter)
-            root_logger.addHandler(ch)
+    if add_console_handler is not False and not any(getattr(h, "_dtf_console", False) for h in namespace_logger.handlers):
+        handler_class = logging.StreamHandler if add_console_handler else _ConsoleWhenHostUnconfigured
+        console = handler_class(stream=stream)
+        console.setFormatter(formatter)
+        console._dtf_console = True   # marks it so repeated calls don't add another
+        namespace_logger.addHandler(console)
 
-    # Attach a file handler exactly once
     if add_file_handler:
         if not file_path:
             raise ValueError("file_path is required when add_file_handler=True")
-        has_file = any(isinstance(h, logging.FileHandler) and getattr(h, "_dqx_path", None) == file_path
-                       for h in root_logger.handlers)
-        if not has_file:
-            fh = logging.FileHandler(file_path, mode=file_mode, encoding="utf-8")
-            fh.setLevel(numeric_level)
-            fh.setFormatter(formatter)
-            # mark to avoid duplicate same-file handlers on repeated configure calls
-            setattr(fh, "_dqx_path", file_path)
-            root_logger.addHandler(fh)
+        if not any(getattr(h, "_dtf_path", None) == file_path for h in namespace_logger.handlers):
+            file_handler = logging.FileHandler(file_path, mode=file_mode, encoding="utf-8")
+            file_handler.setFormatter(formatter)
+            file_handler._dtf_path = file_path
+            namespace_logger.addHandler(file_handler)
 
-    root_logger.propagate = propagate
+    _configured_namespaces.add(namespace)
 
 
 def set_level(level: str | int, namespace: str = DEFAULT_NAMESPACE) -> None:
-    """Dynamically change the framework log level (and sync handler levels)."""
-    numeric = _parse_level(level)
-    lg = logging.getLogger(namespace)
-    lg.setLevel(numeric)
-    for h in lg.handlers:
-        h.setLevel(numeric)
+    """Changes the framework log level at run time."""
+    logging.getLogger(namespace).setLevel(_parse_level(level))
 
 
 class LoggingHandler:
     """
-    Handle logging for the ZkblockDQX engine.
+    Gives framework code a logger under the framework namespace, configuring logging on first use.
     """
 
     def __init__(self, name: str | None = None, *, namespace: str = DEFAULT_NAMESPACE):
         """
         Args:
-            name: The logger name. If it does not start with the namespace,
-                  it will be prefixed (e.g., 'compiler' -> 'dqx.compiler').
-            namespace: Root namespace for the framework (default 'dqx').
+            name: The logger name, usually __name__. Names outside the namespace are nested under it,
+                  e.g. 'column_rename_test' -> 'wilsonelser.column_rename_test'.
+            namespace: Root namespace for the framework (default 'wilsonelser').
         """
+        if namespace not in _configured_namespaces:
+            configure_logging(namespace=namespace)
+
         if not name:
             fq_name = namespace
-        elif name.startswith(namespace):
+        elif name == namespace or name.startswith(f"{namespace}."):
             fq_name = name
         else:
-            # Keep compatibility with passing in class names while still nesting under root
-            # e.g., 'MyClass' -> 'dqx.MyClass'; 'dqx.rules' stays as-is.
             fq_name = f"{namespace}.{name}"
 
         self._logger: logging.Logger = logging.getLogger(fq_name)
