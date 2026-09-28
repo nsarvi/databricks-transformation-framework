@@ -1,0 +1,11 @@
+# Raw -> Bronze load settings for Expert Sierra, used by use_cases/expert_sierra/bronze_load.ipynb.
+# ${...} values come from the environment's config/env/<env>.yaml, picked from config/env/environments.yaml.
+bronze_load:
+  catalog: "${expertsierra_catalog}"
+  raw_schema: "dbo_raw"
+  bronze_schema: "bronze"
+  # Which tables to load, and full or incremental per table
+  tables_config: "use_cases/expert_sierra/config/bronze_tables.yml"
+  checkpoint_location: "/Volumes/${expertsierra_catalog}/bronze/checkpoints"
+  transformation_config: "use_cases/expert_sierra/config/bronze_transformations.yml"
+  transformation_id: "bronze_standard"

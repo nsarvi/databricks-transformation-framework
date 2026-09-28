@@ -1,0 +1,21 @@
+# Bronze transformation for all Expert Sierra tables (Raw -> Bronze, 1:1).
+# Applied by use_cases/expert_sierra/bronze_load.ipynb; operations run in the order written.
+transformations:
+  - id: "bronze_standard"
+    # Technical cleanup: trim, empty/whitespace -> NULL, remove control characters, CHAR -> STRING
+    custom_functions:
+      - name: "use_cases.custom_transformations.common_tx.standardize_strings"
+    # Audit columns
+    additional_columns:
+      - name: "source_system"
+        type: "string"
+        value: "'SIERRA_EXPERT'"
+      - name: "ingestion_timestamp"
+        type: "timestamp"
+        value: "current_timestamp()"
+      - name: "job_run_id"
+        type: "string"
+        value: "'${job_run_id}'"
+      - name: "record_hash"          # not populated yet
+        type: "string"
+        value: "NULL"

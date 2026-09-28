@@ -36,7 +36,7 @@ packages = ["src/wilsonelser"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "tests"]
+pythonpath = ["src", "tests", "."]
 # Integration tests are skipped by default; run them with `-m integration`, or everything with `-m ""`
 addopts = "-m 'not integration'"
 markers = [
