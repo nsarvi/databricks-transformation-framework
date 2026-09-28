@@ -44,6 +44,19 @@ class TableWriter(DataTransformer):
         )
 
     @staticmethod
+    def _parse_update_assignment(assignment: str) -> tuple:
+        """Splits a merge `update` entry such as "name = source.name" into (column, expression).
+
+        Splits on the first "=", with any spacing, so the expression may contain "=" itself
+        (e.g. "flag = CASE WHEN source.x = 1 THEN 'Y' END").
+        """
+        column, separator, expression = str(assignment).partition("=")
+        column, expression = column.strip(), expression.strip()
+        if not separator or not column or not expression:
+            raise ValueError(f"Merge update entry must look like '<column> = <expression>', got: {assignment!r}")
+        return column, expression
+
+    @staticmethod
     def _property_value(value: Any) -> str:
         """Table property values as Delta expects them: YAML true/false become "true"/"false"."""
         if isinstance(value, bool):
@@ -206,7 +219,9 @@ class TableWriter(DataTransformer):
         )
 
         if when_matched:
-            update_expr: Optional[Dict[str, Any]] = {col.split(" = ")[0].strip(): F.expr(col.split(" = ", 1)[1].strip()) for col in when_matched}
+            update_expr: Dict[str, Any] = dict(
+                (column, F.expr(expression)) for column, expression in map(self._parse_update_assignment, when_matched)
+            )
             merge_builder = merge_builder.whenMatchedUpdate(set=update_expr)
 
         # Handling not matched inserts
