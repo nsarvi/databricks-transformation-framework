@@ -225,6 +225,11 @@ workspace isn't listed, or is listed under more than one environment.
 
 All take `(config_file, env_config_file=None)`.
 
+**Logs.** The framework logs at INFO to the notebook or job output (or to your own logging setup, if you
+have one). For more detail, set the environment variable `DTF_LOG_LEVEL=DEBUG` on the cluster or job, or call
+`configure_logging(level="DEBUG")` from `wilsonelser.transformation.utils.logging_utils` before creating the
+classes.
+
 **Passing your own DataFrame.** `write_table(table_id, df)` writes `df` instead of reading the target's
 `source_type`/`source_id`. Use it when part of the logic lives in your notebook.
 
@@ -602,6 +607,7 @@ targets:
 | `partition_by` / `cluster_by` | list | Applied when the table is created. Use one, not both; `partition_by` wins if both are set |
 | `options` | map | Passed to the Spark writer. For streams, also holds `trigger` (see below) |
 | `schema_file` | str | Spark StructType JSON, used to create the table |
+| `table_properties` | map | Delta table properties, e.g. `delta.autoOptimize.optimizeWrite: "true"`. Checked on every write: only missing or different values are set, so config changes reach existing tables. Properties removed from the config stay on the table |
 
 **First write.** If the table doesn't exist, it is created empty (with `partition_by`/`cluster_by`),
 then the data is written with `write_mode`. The table's schema comes from, in order: the existing table,
@@ -627,7 +633,8 @@ targets:
         insert: ["customer_id", "customer_name"]
 ```
 
-- **`update` entries** must be written exactly `column = expression`, with spaces around `=`.
+- **`update` entries** are `column = expression`, split on the first `=` with any spacing, so the expression
+  can contain `=` itself (e.g. `flag = CASE WHEN source.x = 1 THEN 'Y' END`).
 - **`insert`** lists the columns to copy from the source for new rows.
 
 #### Streaming targets
@@ -716,8 +723,6 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 
 ## Known limitations
 
-- **`table_properties` is ignored.** It appears in several example configs but the framework doesn't
-  apply it. Set table properties with `ALTER TABLE ... SET TBLPROPERTIES` for now.
 - **`select_columns` is effectively required for joins,** see [joins](#joins).
 - **`source_alias` is not a key.** Use `merge_source_alias`; older configs with `source_alias` only work
   because the default is also `source`.

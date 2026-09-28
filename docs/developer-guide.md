@@ -229,7 +229,11 @@ parameters) before the job is useful.
 
 - **No hardcoded catalogs or schemas** in code or configs; use `${catalog}`-style placeholders.
 - **Logging:**
-  - get loggers with `LoggingHandler(__name__).get_logger()`;
+  - get loggers with `LoggingHandler(__name__).get_logger()`. Loggers live under the `wilsonelser`
+    namespace, and the first one configures logging. Records always go to the host's logging (pytest,
+    apps), and a console handler prints them only while the host has none (notebooks, jobs), decided per
+    record so the order of setup doesn't matter. Level: `DTF_LOG_LEVEL`, INFO by default;
+    `configure_logging()` overrides it;
   - use `%s` arguments (`logger.info("Wrote %s rows", n)`), not f-strings;
   - never log DataFrames with `df.show()`.
 - **Paths:** resolve files through `ConfigUtils._resolve_path`. Paths in configs and examples are relative
@@ -249,8 +253,4 @@ Found in code review and not fixed yet. Fix them test-first, and update the
 |---|---|
 | Joins return only aliases listed in `select_columns`; with none, the select is empty | `DataTransformer._select_final_columns` |
 | `apply_unions` expects `unions` to be a mapping, but `tests/configs/transformers/union_config.yaml` uses a list. `union_test.py` passes only because it replaces `combine_lookup` | `data_transformer.py`, `union_config.yaml` |
-| `table_properties` is never applied | `table_writer.py` |
-| Merge `update` entries are split on `" = "`; other spacing fails | `TableWriter.merge_into_target` |
-| `LoggingHandler` is never configured by the framework, and `logging_utils.py` still refers to DQX (`DQX_LOG_LEVEL`) | `utils/logging_utils.py` |
-| Several `apply_columns_*` docstrings say "applies column renaming" | `base_integration.py` |
 | `main.py` is the bundle template placeholder (reads `samples.nyctaxi.trips`) | `src/wilsonelser/main.py` |
