@@ -3,6 +3,7 @@ import time
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
+from pyspark.sql.streaming import StreamingQuery
 from pyspark.sql.types import StructType
 from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
@@ -12,7 +13,10 @@ from typing import Optional, Dict, Any, overload, Callable
 import importlib
 
 class TableWriter(DataTransformer):
-    
+
+    # How often a waiting streaming write logs progress
+    STREAM_PROGRESS_INTERVAL_SECONDS = 30
+
     def __init__(self, config_file: str, env_config_path: Optional[str] = None):
         super().__init__(config_file, env_config_path)
 
@@ -42,6 +46,39 @@ class TableWriter(DataTransformer):
         raise ValueError(
             f"Unsupported trigger '{trigger_option}'. Use availableNow, processingTime=<interval> or continuous=<interval>"
         )
+
+    def _stream_wait_settings(self, table_id: str) -> tuple:
+        """Reads and validates a streaming target's `wait` (default true) and `timeout_seconds` (default none)."""
+        target_config = self.target_lookup[table_id]
+        wait = target_config.get(YC.STREAM_WAIT_KEY, True)
+        timeout_seconds = target_config.get(YC.STREAM_TIMEOUT_SECONDS_KEY)
+        if not isinstance(wait, bool):
+            raise ValueError(f"'wait' for target '{table_id}' must be true or false, got: {wait!r}")
+        if timeout_seconds is not None:
+            if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
+                raise ValueError(f"'timeout_seconds' for target '{table_id}' must be a positive number, got: {timeout_seconds!r}")
+            if not wait:
+                raise ValueError(f"'timeout_seconds' for target '{table_id}' needs 'wait: true'")
+        return wait, timeout_seconds
+
+    def _await_stream(self, query: StreamingQuery, table_name: str, timeout_seconds: Optional[float]) -> None:
+        """Waits for a streaming query to finish, logging progress. With a timeout, stops it cleanly when the
+        time is up. A failed query raises its error."""
+        deadline = None if timeout_seconds is None else time.monotonic() + timeout_seconds
+        while True:
+            interval = self.STREAM_PROGRESS_INTERVAL_SECONDS
+            if deadline is not None:
+                interval = max(0, min(interval, deadline - time.monotonic()))
+            if query.awaitTermination(interval):
+                self.logger.info("Streaming query for %s finished", table_name)
+                return
+            progress = query.lastProgress
+            if progress:
+                self.logger.info("Streaming query for %s: %s rows in the last batch", table_name, progress["numOutputRows"])
+            if deadline is not None and time.monotonic() >= deadline:
+                self.logger.info("Stopping the streaming query for %s after %s seconds (timeout_seconds)", table_name, timeout_seconds)
+                query.stop()
+                return
 
     @staticmethod
     def _parse_update_assignment(assignment: str) -> tuple:
@@ -232,17 +269,20 @@ class TableWriter(DataTransformer):
         merge_builder.execute()
 
     @overload
-    def write_table(self, table_id: str) -> None: ...
-    
+    def write_table(self, table_id: str) -> Optional[StreamingQuery]: ...
+
     @overload
-    def write_table(self, table_id: str, df: DataFrame) -> None: ...
-    
-    
-    def write_table(self, table_id: str, df: Optional[DataFrame] = None) -> None:
+    def write_table(self, table_id: str, df: DataFrame) -> Optional[StreamingQuery]: ...
+
+
+    def write_table(self, table_id: str, df: Optional[DataFrame] = None) -> Optional[StreamingQuery]:
         """Writes the DataFrame, or the configured source when none is given, to the target table based on the table_id.
 
         The target table is created first when it does not exist, then the data is always written,
         so the first run behaves the same as later runs for append, overwrite, merge and stream.
+
+        Streaming targets wait for the query to finish (or `timeout_seconds` to pass) and return None. With
+        `wait: false`, the query is started and returned without waiting, for the caller to manage.
         """
 
         target_config = self.target_lookup.get(table_id)
@@ -285,8 +325,10 @@ class TableWriter(DataTransformer):
 
             # Check for for_each_batch_function
             for_each_batch_function_name = target_config.get(YC.FOR_EACH_BATCH_FUNCTION_KEY)
+            wait, timeout_seconds = self._stream_wait_settings(table_id)
             # Set before the try so the finally block can check it even if the query never starts
             streaming_query = None
+            leave_running = False
             # Start streaming query
             try:
                 # Copy the options so the loaded config isn't changed; `trigger` configures the query, not the writer
@@ -313,23 +355,17 @@ class TableWriter(DataTransformer):
                 self.logger.info(f"Starting streaming query for table: {table_name} with query name: {query_name}")
                 self.logger.debug(f"Streaming query options: {options}")
             
-                streaming_query =query.toTable(table_name)            
-                # Continuously monitor streaming progress with a delay
-                while streaming_query.isActive:
-                    last_progress = streaming_query.lastProgress
-                    if last_progress and "numOutputRows" in last_progress:
-                        num_records = last_progress["numOutputRows"]
-                        self.logger.info(f"Records written in last batch: {num_records}")
-                    else:
-                        self.logger.info("No new records processed yet.")
-                    time.sleep(5)  # Sleep for 5 seconds before checking again
-                    
-                streaming_query.awaitTermination()
+                streaming_query = query.toTable(table_name)
+                if not wait:
+                    self.logger.info("Started streaming query %s for %s; not waiting for it", query_name, table_name)
+                    leave_running = True
+                    return streaming_query
+                self._await_stream(streaming_query, table_name, timeout_seconds)
             except Exception as e:
                 self.logger.error(f"Error while running streaming query for table {table_name}: {str(e)}")
                 raise
             finally:
-                if streaming_query and streaming_query.isActive:
+                if streaming_query is not None and not leave_running and streaming_query.isActive:
                     streaming_query.stop()
                     self.logger.info(f"Streaming query stopped for table: {table_name}")
        

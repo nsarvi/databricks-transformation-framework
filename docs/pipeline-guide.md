@@ -664,10 +664,28 @@ targets:
 - **Query name:** `<query_name_prefix>_<table_id>`.
 - **Triggers:**
   - `availableNow` (the default): processes everything available, then stops. Use it for scheduled runs.
-  - `processingTime=<interval>` or `continuous=<interval>`: the query keeps running, so `write_table` blocks
-    until it's stopped.
+  - `processingTime=<interval>` or `continuous=<interval>`: the query keeps running until it's stopped.
   - `once` is deprecated in Spark. It still works, runs as `availableNow`, and logs a warning.
   - `trigger` only configures the query; it isn't passed to Spark as a writer option.
+- **Waiting:** `write_table` waits for the query to finish, logging progress every 30 seconds. Two optional
+  target keys change that, for example for a bounded run or to run several streams from one notebook:
+
+  ```yaml
+  targets:
+    - table_id: "customers_stream"
+      table: "${catalog}.${schema}.customers_stream"
+      write_type: "stream"
+      options:
+        trigger: "processingTime=10 seconds"
+      timeout_seconds: 3600     # stop the query cleanly after an hour and return (needs wait: true)
+  ```
+
+  | Key | Default | Effect |
+  |---|---|---|
+  | `timeout_seconds` | none | Stop the query cleanly after this many seconds, then return normally |
+  | `wait` | `true` | `false`: start the query and return it (`StreamingQuery`) without waiting; manage it yourself, e.g. `spark.streams.awaitAnyTermination()` |
+
+  A query that fails raises its error, and is stopped.
 - **`for_each_batch_function: "package.module.function"`** runs your own `(batch_df, batch_id)` function
   for each micro-batch instead of writing directly.
 
@@ -744,9 +762,11 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 | `No join condition found for <alias>` | Each joined source needs a `join_conditions` entry with `right: <alias>` and a `left` alias that's already joined |
 | `select_columns lists aliases that aren't joined` | An alias in `select_columns` doesn't match any `alias` in `source_ids` |
 | `'unions' in combine '<id>' must be a mapping` | Write `unions:` as a mapping with `source_ids`, not a list of entries |
+| `Source '<id>' is not defined in the config's sources` | A `source_id` (in a call, a combine or a target) doesn't match any `sources` entry; the error lists the defined ones |
 | `Combine configuration not found` / `Configuration not found for table_id` | The id in the call doesn't match the config |
 | `Combine '<id>' must define exactly one of 'unions' or 'joins'` | Split the combine in two and [chain them](#chaining-combines), or add the missing section |
 | `Combines refer to each other in a loop: a -> b -> a` | A combine uses itself as an input, directly or through others |
 | `'<id>' is both a source_id and a combine_id` | Rename one of them; ids must be unique across `sources` and `combine` |
-| `write_table` never returns | A streaming target with a `processingTime` or `continuous` trigger; use `availableNow` for batch-style runs |
+| `write_table` never returns | A streaming target with a `processingTime` or `continuous` trigger runs until stopped; use `availableNow`, or set `timeout_seconds` or `wait: false` |
+| `'timeout_seconds' ... needs 'wait: true'` / `must be a positive number` | Use a positive number of seconds, and don't combine it with `wait: false` |
 | `Unsupported trigger '...'` | Use `availableNow`, `processingTime=<interval>` or `continuous=<interval>` |

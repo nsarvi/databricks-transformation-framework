@@ -251,7 +251,5 @@ Found in code review and not fixed yet. Fix them test-first, and update the
 
 | Issue | Where |
 |---|---|
-| A streaming target with a `processingTime` or `continuous` trigger makes `write_table` wait until the query is stopped; there's no timeout option | `TableWriter.write_table` |
-| An unknown `source_id` is only logged by `read_source_table`, then fails later in `_read_table` with a less specific message | `TableReader.read_source_table` |
 | `distinct_columns: []` raises `IndexError` | `BaseIntegration.apply_distinct_columns` |
 | `columns_to_snake_case` can produce duplicate or empty column names (e.g. `CustID` and `cust_id`, or a name made only of symbols) | `BaseIntegration.apply_columns_to_snake_case` |

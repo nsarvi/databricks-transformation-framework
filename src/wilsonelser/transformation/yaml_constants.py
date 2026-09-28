@@ -122,6 +122,8 @@ UPDATE_KEY = "update"
 WHEN_NOT_MATCHED_KEY = "when_not_matched"
 INSERT_KEY = "insert"
 FOR_EACH_BATCH_FUNCTION_KEY = "for_each_batch_function"
+STREAM_TIMEOUT_SECONDS_KEY = "timeout_seconds"   # stop a streaming query after this long
+STREAM_WAIT_KEY = "wait"                          # false: start a streaming query and return it
 
 # Constants for source types
 SOURCE_TYPE_COMBINE = COMBINE_KEY  # Source is a combination of multiple sources
