@@ -4,23 +4,41 @@ from pyspark.sql import DataFrame
 from wilsonelser.transformation  import yaml_constants as YC
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
-from typing import Optional
+from typing import Optional, Tuple
 
 class DataTransformer(TableReader):
     
     def __init__(self, config_file: str, env_config_path: Optional[str] = None):
         super().__init__(config_file, env_config_path)
   
-    def _read_and_select(self, source_id: str, alias: str, select_columns: dict) -> DataFrame:
+    def _read_input(self, input_id: str, combine_path: Tuple[str, ...] = ()) -> DataFrame:
         """
-        Reads the source table and selects columns based on the alias and select_columns configuration.
+        Reads an input of a join or union: another combine's result when input_id is a combine_id,
+        otherwise the source with that source_id.
 
-        :param source_id: The source table ID to read from.
-        :param alias: The alias for the source table.
+        :param input_id: A source_id or a combine_id.
+        :param combine_path: The combines being built that led here, to detect loops.
+        :return: The input DataFrame.
+        """
+        if input_id in self.combine_lookup:
+            if input_id in self.source_lookup:
+                raise ValueError(f"'{input_id}' is both a source_id and a combine_id; ids must be unique")
+            return self.apply_combine(input_id, combine_path)
+        return self.read_source_table(input_id)
+
+    def _read_and_select(self, source_id: str, alias: str, select_columns: dict,
+                         combine_path: Tuple[str, ...] = ()) -> DataFrame:
+        """
+        Reads a join input (a source or another combine) and selects columns based on the alias and
+        select_columns configuration.
+
+        :param source_id: The source_id or combine_id to read.
+        :param alias: The alias for the input.
         :param select_columns: A dictionary mapping aliases to columns to select.
+        :param combine_path: The combines being built that led here, to detect loops.
         :return: A DataFrame with selected columns.
         """
-        df = self.read_source_table(source_id)
+        df = self._read_input(source_id, combine_path)
         
         if alias in select_columns:
             df = df.select(*select_columns[alias])
@@ -94,13 +112,15 @@ class DataTransformer(TableReader):
         return df.filter(F.expr(row_filter_condition))
 
 
-    def apply_joins(self, combine_id: str) -> DataFrame:
+    def apply_joins(self, combine_id: str, _combine_path: Tuple[str, ...] = ()) -> DataFrame:
         """
-        Applies union operations based on the configuration for the specified combine_id.
-    
-        :param combine_id: The combine_id to look up the union configuration
-        :return: A DataFrame resulting from the union operations
+        Applies join operations based on the configuration for the specified combine_id.
+        Each joined input is a source_id or the combine_id of another combine.
+
+        :param combine_id: The combine_id to look up the join configuration
+        :return: A DataFrame resulting from the join operations
         """
+        combine_path = _combine_path or (combine_id,)
         self.logger.info(f"Applying joins for combine_id: {combine_id}")
         # Retrieve the combine configuration
         combine_config = self.combine_lookup.get(combine_id)
@@ -123,7 +143,7 @@ class DataTransformer(TableReader):
         alias = join_config.get(YC.ALIAS_KEY, None)
 
         # Process the first source table
-        result_df = self._read_and_select(source_ids[0][YC.SOURCE_ID_KEY], source_ids[0][YC.ALIAS_KEY], select_columns)
+        result_df = self._read_and_select(source_ids[0][YC.SOURCE_ID_KEY], source_ids[0][YC.ALIAS_KEY], select_columns, combine_path)
         alias_to_df = {source_ids[0][YC.ALIAS_KEY]: result_df}
 
         join_lookup = {
@@ -136,7 +156,7 @@ class DataTransformer(TableReader):
             right = source_ids[i]
             right_alias = right[YC.ALIAS_KEY]
             self.logger.info(f"Reading and selecting columns for source_id: {right[YC.SOURCE_ID_KEY]} with alias: {right_alias}")
-            right_df = self._read_and_select(right[YC.SOURCE_ID_KEY], right_alias, select_columns)
+            right_df = self._read_and_select(right[YC.SOURCE_ID_KEY], right_alias, select_columns, combine_path)
 
             found_join = False
             for left_alias in alias_to_df.keys():
@@ -174,13 +194,15 @@ class DataTransformer(TableReader):
         return result_df
 
 
-    def apply_unions(self, combine_id: str) -> DataFrame:
+    def apply_unions(self, combine_id: str, _combine_path: Tuple[str, ...] = ()) -> DataFrame:
         """
         Applies union operations based on the configuration for the specified combine_id.
-    
+        Each input is a source_id or the combine_id of another combine.
+
         :param combine_id: The combine_id to look up the union configuration
         :return: A DataFrame resulting from the union operations
         """
+        combine_path = _combine_path or (combine_id,)
         combine_config = self.combine_lookup.get(combine_id)
         self.logger.info(f"Applying unions for combine_id: {combine_id}")
         if not combine_config:
@@ -194,7 +216,7 @@ class DataTransformer(TableReader):
         if not source_ids:
             raise ValueError(f"No table_ids found in union configuration for combine_id: {combine_id}")
     
-        dataframes = [self.read_source_table(source_id) for source_id in source_ids]
+        dataframes = [self._read_input(source_id, combine_path) for source_id in source_ids]
     
         if not dataframes:
             raise ValueError(f"No DataFrames to union for combine_id: {combine_id}")
@@ -210,30 +232,27 @@ class DataTransformer(TableReader):
         return result_df
         
     
-    def apply_combine(self, combine_id: str) -> DataFrame:
+    def apply_combine(self, combine_id: str, _combine_path: Tuple[str, ...] = ()) -> DataFrame:
         """
-        Applies combine operations (unions and joins) based on the configuration for the specified combine_id.
+        Applies the combine's unions or joins. A combine defines exactly one of them; to union and then join
+        (or the reverse), use two combines, where one lists the other's combine_id as an input.
 
         :param combine_id: The combine_id to look up the combine configuration
         :return: A DataFrame resulting from the combine operations
         """
+        if combine_id in _combine_path:
+            raise ValueError(f"Combines refer to each other in a loop: {' -> '.join(_combine_path + (combine_id,))}")
         combine_config = self.combine_lookup.get(combine_id)
         if not combine_config:
             raise ValueError(f"Combine configuration not found for combine_id: {combine_id}")
 
-        # Apply union operations only if union configuration exists
-        union_config = combine_config.get(YC.UNIONS_KEY)
-        if union_config:
-            union_df = self.apply_unions(combine_id)
-            final_df=union_df
+        has_unions = bool(combine_config.get(YC.UNIONS_KEY))
+        has_joins = bool(combine_config.get(YC.JOINS_KEY))
+        if has_unions == has_joins:
+            found = "both" if has_unions else "neither"
+            raise ValueError(f"Combine '{combine_id}' must define exactly one of 'unions' or 'joins', found {found}")
 
-        # Apply join operations only if join configuration exists
-        join_config = combine_config.get(YC.JOINS_KEY)
-        if join_config:
-            join_df = self.apply_joins(combine_id)
-            final_df = join_df
-
-        
-        return final_df
-
-   
+        combine_path = _combine_path + (combine_id,)
+        if has_unions:
+            return self.apply_unions(combine_id, combine_path)
+        return self.apply_joins(combine_id, combine_path)
