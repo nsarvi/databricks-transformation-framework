@@ -107,8 +107,9 @@ Run it with one call:
 
 ```python
 from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.utils.config_utils import ConfigUtils
 
-writer = TableWriter("use_cases/sales/customer_sales.yml", "config/env/dev.yaml")
+writer = TableWriter("use_cases/sales/customer_sales.yml", ConfigUtils.env_config_file())
 writer.write_table("silver_customer_sales")
 ```
 
@@ -121,6 +122,7 @@ Keep each pipeline's files together under `use_cases/<domain>/`, and shared code
 `use_cases/custom_transformations/`:
 
 ```
+config/env/environments.yaml                the workspace of each environment
 config/env/dev.yaml                         environment values (catalog, schemas)
 use_cases/
   sales/                                    one folder per domain
@@ -172,7 +174,7 @@ Placeholders work in any string value in the config, and in SQL files used by
 Each placeholder is resolved in this order:
 
 1. **The env config file** passed as the second argument, for example `TableWriter(config, "config/env/dev.yaml")`.
-   Env files are flat `name: value` mappings; the shared ones live in `config/env/`.
+   Env files are flat `name: value` mappings; the shared ones live in `config/env/`, one per environment.
 2. **An environment variable** with the same name, for example `catalog`. Useful in jobs and CI.
 
 If neither has a value, loading fails with `No value for placeholder '${catalog}'` instead of running
@@ -180,10 +182,35 @@ against a wrong table.
 
 ```yaml
 # config/env/dev.yaml
-catalog: dev_catalog
-bronze_schema: bronze
-silver_schema: silver
+sales_catalog: sales_dev
+sales_bronze_schema: bronze
 ```
+
+The env files are shared by every pipeline in the repo, so **prefix each key with your domain**
+(`sales_catalog`, `expertsierra_catalog`) to avoid clashing with another domain's values.
+
+### Picking the environment automatically
+
+Each environment has its own Databricks workspace, listed in `config/env/environments.yaml`:
+
+```yaml
+dev: adb-1234567890123456.7.azuredatabricks.net
+uat: adb-2345678901234567.8.azuredatabricks.net
+prod: adb-3456789012345678.9.azuredatabricks.net
+```
+
+`ConfigUtils.env_config_file()` looks up the current workspace's URL in that file and returns the matching
+env file, e.g. `config/env/dev.yaml`. Pass it as the env config file, and the same notebook and config run
+unchanged in every environment, with no parameters:
+
+```python
+from wilsonelser.transformation.utils.config_utils import ConfigUtils
+
+settings = ConfigUtils.load_config("use_cases/sales/config/sales_load.yml", ConfigUtils.env_config_file())
+```
+
+`ConfigUtils.current_env()` returns just the name (`dev`). Both fail with a clear message when the
+workspace isn't listed, or is listed under more than one environment.
 
 ## Running a pipeline
 
@@ -208,14 +235,14 @@ All take `(config_file, env_config_file=None)`.
 
 - **Jobs:** `databricks bundle deploy` builds the wheel and attaches it to the job. See the
   [developer guide](developer-guide.md#build-and-deploy).
-- **Notebooks:** install the deployed wheel, then restart Python:
+- **Notebooks:** install the released wheel from the shared libraries folder, then restart Python:
 
   ```python
-  %pip install /Workspace/Users/<you>/.bundle/wilsonelser_dtf/dev/artifacts/.internal/wilsonelser_dtf-1.0.0-py3-none-any.whl
+  %pip install /Workspace/Shared/libraries/wilsonelser-dtf/wilsonelser_dtf-<version>-py3-none-any.whl
   %restart_python
   ```
 
-  Check the bundle's `artifacts/.internal` folder in the workspace for the exact file name.
+  Each version stays in that folder, so pin the version your notebook was tested with.
 
 ## Config reference
 
@@ -451,7 +478,8 @@ Passing a DataFrame as well is an error.
 
 ### combine
 
-A combine has either `joins` or `unions`, each a **mapping** (not a list).
+A combine has exactly one of `joins` or `unions`, each a **mapping** (not a list). Their inputs can be
+sources or other combines, see [Chaining combines](#chaining-combines).
 
 #### joins
 
@@ -514,6 +542,39 @@ combine:
 ```
 
 Sources are matched by column name (`unionByName`).
+
+#### Chaining combines
+
+An input in `source_ids` can be a `source_id` or the `combine_id` of another combine, so combines build on each
+other. To union two regions and then join sales to the result, use two combines:
+
+```yaml
+combine:
+  - combine_id: "all_customers"
+    unions:
+      source_ids: ["customers_region_1", "customers_region_2"]
+
+  - combine_id: "customer_sales"
+    joins:
+      source_ids:
+        - source_id: "all_customers"     # the union above
+          alias: "c"
+          join_order: 1
+        - source_id: "sales"
+          alias: "s"
+          join_order: 2
+      join_conditions:
+        - left: "c"
+          right: "s"
+          condition: "c.customer_id = s.customer_id"
+      select_columns:
+        c: ["customer_id", "customer_name"]
+        s: ["transaction_id", "price"]
+```
+
+Running `customer_sales` (for example as a target's `source_id` with `source_type: "combine"`) builds
+`all_customers` first. Chains can be any depth, in either direction. Ids must be unique across `sources` and
+`combine`, and combines can't refer to each other in a loop.
 
 ### targets
 
@@ -584,13 +645,17 @@ targets:
     source_type: "sources"
     source_id: "customers_raw"           # a source with read_type: stream
     options:
-      trigger: "once"                    # once (default) | processingTime=10 seconds | continuous=1 second
+      trigger: "availableNow"            # availableNow (default) | processingTime=10 seconds | continuous=1 second
 ```
 
 - **Checkpoint:** stored at `<base_checkpoint_location>/<table_id>`.
 - **Query name:** `<query_name_prefix>_<table_id>`.
-- **Triggers:** `write_table` waits for the query to finish. With `processingTime` or `continuous`
-  triggers the query never finishes, so the call blocks until the query is stopped.
+- **Triggers:**
+  - `availableNow` (the default): processes everything available, then stops. Use it for scheduled runs.
+  - `processingTime=<interval>` or `continuous=<interval>`: the query keeps running, so `write_table` blocks
+    until it's stopped.
+  - `once` is deprecated in Spark. It still works, runs as `availableNow`, and logs a warning.
+  - `trigger` only configures the query; it isn't passed to Spark as a writer option.
 - **`for_each_batch_function: "package.module.function"`** runs your own `(batch_df, batch_id)` function
   for each micro-batch instead of writing directly.
 
@@ -653,17 +718,16 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 
 - **`table_properties` is ignored.** It appears in several example configs but the framework doesn't
   apply it. Set table properties with `ALTER TABLE ... SET TBLPROPERTIES` for now.
-- **A combine uses joins or unions, not both.** If both are present, only the join result is used.
 - **`select_columns` is effectively required for joins,** see [joins](#joins).
 - **`source_alias` is not a key.** Use `merge_source_alias`; older configs with `source_alias` only work
   because the default is also `source`.
-- **`trigger: once` is deprecated in recent Spark versions;** `availableNow` isn't supported yet.
 
 ## Troubleshooting
 
 | Error | Cause and fix |
 |---|---|
 | `No value for placeholder '${catalog}'` | Add `catalog` to the env file you pass, or set a `catalog` environment variable |
+| `Workspace ... must be listed exactly once in config/env/environments.yaml` | Add the workspace URL under its environment, or remove a duplicate |
 | `Config file '...' not found. Attempted paths: ...` | Write the path relative to the repo root, and check the repo root is on `sys.path`; the error lists every location tried |
 | `ModuleNotFoundError: No module named 'use_cases'` | The repo root isn't on `sys.path`, see [Organizing a pipeline](#organizing-a-pipeline) |
 | `TABLE_OR_VIEW_NOT_FOUND` / `SCHEMA_NOT_FOUND` | Placeholders resolved to the wrong catalog or schema; check the env file first, it wins over environment variables |
@@ -671,4 +735,8 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 | `No join condition found for <alias>` | Each joined source needs a `join_conditions` entry with `right: <alias>` and a `left` alias that's already joined |
 | Join returns no columns | `select_columns` is missing, or doesn't list the aliases |
 | `Combine configuration not found` / `Configuration not found for table_id` | The id in the call doesn't match the config |
-| `write_table` never returns | A streaming target with a `processingTime` or `continuous` trigger; use `once` for batch-style runs |
+| `Combine '<id>' must define exactly one of 'unions' or 'joins'` | Split the combine in two and [chain them](#chaining-combines), or add the missing section |
+| `Combines refer to each other in a loop: a -> b -> a` | A combine uses itself as an input, directly or through others |
+| `'<id>' is both a source_id and a combine_id` | Rename one of them; ids must be unique across `sources` and `combine` |
+| `write_table` never returns | A streaming target with a `processingTime` or `continuous` trigger; use `availableNow` for batch-style runs |
+| `Unsupported trigger '...'` | Use `availableNow`, `processingTime=<interval>` or `continuous=<interval>` |

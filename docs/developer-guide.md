@@ -84,7 +84,7 @@ src/wilsonelser/transformation/    the framework (the only code in the wheel)
   table_writer.py                  table creation, batch/stream writes, merge
   utils/config_utils.py            YAML loading, ${placeholder} resolution, path lookup, schema files
   utils/logging_utils.py           LoggingHandler
-config/env/                        real environment values (dev, uat, prod)
+config/env/                        environments.yaml (workspace per environment) and <env>.yaml values
 use_cases/                         real pipelines, their notebooks and custom functions
 resources/                         bundle job definitions
 tests/                             unit and integration tests, see Testing
@@ -107,7 +107,9 @@ BaseIntegration ─► BaseDataTransformer ─► TableReader ─► DataTransfo
    `SparkSession`. On a cluster the wheel runs without `databricks-connect`, so the import is inside the
    method.
 2. Loads the env file (`self.env_vars`) and the config, resolving `${name}` placeholders from the env
-   file, then environment variables, and failing on anything unresolved (`ConfigUtils`).
+   file, then environment variables, and failing on anything unresolved (`ConfigUtils`). Callers usually get
+   the env file from `ConfigUtils.env_config_file()`, which maps the current workspace URL to its
+   environment through `config/env/environments.yaml`.
 3. Builds id → entry lookups: `source_lookup`, `transformation_lookup`, `combine_lookup`,
    `target_lookup`.
 
@@ -142,6 +144,7 @@ Logs show live at INFO level (`log_cli` in `pyproject.toml`); add `--log-cli-lev
 - **Spark tests** build DataFrames in memory. They still need a Databricks Connect session, but no tables.
 - **`tests/utils/`** needs no Spark:
   - `config_utils_test.py`: placeholder rules.
+  - `environments_test.py`: workspace-to-environment lookup.
   - `real_configs_test.py`: parses every `use_cases/**/*.yml` and `config/env/*.yaml` with dummy values.
   - `docs_examples_test.py`: parses every YAML example in `docs/`.
 
@@ -190,6 +193,16 @@ For a new config key or operation:
 
 **Version.** Set `__version__` in `src/wilsonelser/__init__.py`; the wheel reads it from there.
 
+**Publish for notebooks.** Upload each release next to the previous ones; never overwrite a version in use:
+
+```bash
+uv build --wheel
+databricks workspace import /Workspace/Shared/libraries/wilsonelser-dtf/wilsonelser_dtf-<version>-py3-none-any.whl \
+  --file dist/wilsonelser_dtf-<version>-py3-none-any.whl --format RAW --profile <profile>
+```
+
+Then update the `%pip install` line in the notebooks that should use the new version.
+
 **Build locally.**
 
 ```bash
@@ -234,12 +247,9 @@ Found in code review and not fixed yet. Fix them test-first, and update the
 
 | Issue | Where |
 |---|---|
-| `apply_combine` keeps only the join result when a combine has both `unions` and `joins`, and fails with `UnboundLocalError` when it has neither | `data_transformer.py` |
 | Joins return only aliases listed in `select_columns`; with none, the select is empty | `DataTransformer._select_final_columns` |
 | `apply_unions` expects `unions` to be a mapping, but `tests/configs/transformers/union_config.yaml` uses a list. `union_test.py` passes only because it replaces `combine_lookup` | `data_transformer.py`, `union_config.yaml` |
 | `table_properties` is never applied | `table_writer.py` |
-| Stream writes add `checkpointLocation` to the target's `options` in place, and pass `trigger` to Spark as an option | `TableWriter.write_table` |
-| `trigger(once=True)` is deprecated; `availableNow` isn't supported | `TableWriter.write_table` |
 | Merge `update` entries are split on `" = "`; other spacing fails | `TableWriter.merge_into_target` |
 | `LoggingHandler` is never configured by the framework, and `logging_utils.py` still refers to DQX (`DQX_LOG_LEVEL`) | `utils/logging_utils.py` |
 | Several `apply_columns_*` docstrings say "applies column renaming" | `base_integration.py` |
