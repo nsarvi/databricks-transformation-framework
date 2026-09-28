@@ -91,6 +91,10 @@ class TestTableWriter(unittest.TestCase):
         # Verify the table exists
         self.assertTrue(self.spark.catalog.tableExists(self.table_name_append))
 
+        # Verify the configured table_properties were applied
+        properties = {row["key"]: row["value"] for row in self.spark.sql(f"SHOW TBLPROPERTIES {self.table_name_append}").collect()}
+        self.assertEqual(properties.get("delta.autoOptimize.optimizeWrite"), "true")
+        self.assertEqual(properties.get("delta.autoOptimize.autoCompact"), "true")
 
         # Read the table back into a DataFrame
         result_df = self.spark.table(self.table_name_append)

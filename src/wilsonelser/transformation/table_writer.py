@@ -43,6 +43,36 @@ class TableWriter(DataTransformer):
             f"Unsupported trigger '{trigger_option}'. Use availableNow, processingTime=<interval> or continuous=<interval>"
         )
 
+    @staticmethod
+    def _property_value(value: Any) -> str:
+        """Table property values as Delta expects them: YAML true/false become "true"/"false"."""
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        return str(value)
+
+    def _apply_table_properties(self, table_id: str) -> None:
+        """Sets the target's `table_properties` on its table, changing only properties that differ.
+
+        Runs on every write, so config changes reach existing tables; properties removed from the config
+        are left on the table.
+        """
+        target_config = self.target_lookup[table_id]
+        desired = {
+            str(key): self._property_value(value)
+            for key, value in (target_config.get(YC.TABLE_PROPERTIES_KEY) or {}).items()
+        }
+        if not desired:
+            return
+        table_name = target_config.get(YC.TABLE_KEY)
+        current = {row["key"]: row["value"] for row in self.spark.sql(f"SHOW TBLPROPERTIES {table_name}").collect()}
+        changed = {key: value for key, value in desired.items() if current.get(key) != value}
+        if not changed:
+            return
+        quote = lambda text: "'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'"
+        assignments = ", ".join(f"{quote(key)} = {quote(value)}" for key, value in changed.items())
+        self.logger.info("Setting table properties on %s: %s", table_name, changed)
+        self.spark.sql(f"ALTER TABLE {table_name} SET TBLPROPERTIES ({assignments})")
+
     def _get_table_schema(self, table_id: str, df: Optional[DataFrame] = None) -> StructType:
         # Get the table schema in the following order of preference
         # 1) Schema config file defined
@@ -219,6 +249,7 @@ class TableWriter(DataTransformer):
         if not self.spark.catalog.tableExists(table_name):
             self.logger.info(f"Table {table_name} does not exist. Proceeding to create for table_id: {table_id}")
             self._create_table(table_id, df)
+        self._apply_table_properties(table_id)
 
         if write_type == YC.WRITE_TYPE_TABLE:
             self.logger.debug(f"Writing DataFrame to target table with table_id: {table_id}")
