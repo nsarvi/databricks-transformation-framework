@@ -22,6 +22,10 @@ sources:
       startingVersion: 1
       endingVersion: 5
 
+  - source_id: "source_4"
+    table: "unit_test.mocked.adm_store_4"
+    read_type: "table"
+
 # Transformatin will be applied on the target tables      
 transformations:
   # Unique name for the transformation 
@@ -82,10 +86,10 @@ transformations:
 combine:
   - combine_id: "combine_id_1"
     unions:
-      - union_id: "union_id_1"
-        source_ids: ["source_1", "source_2"]
-        distinct: true  # Remove duplicates
+      source_ids: ["source_1", "source_2", "source_3", "source_4"]
+      distinct: true  # Remove duplicates
 
-
-
-
+  - combine_id: "combine_id_2"
+    unions:
+      source_ids: ["source_1", "source_2", "source_3", "source_4"]
+      distinct: false

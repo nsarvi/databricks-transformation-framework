@@ -63,28 +63,46 @@ class DataTransformer(TableReader):
             how=join_type
         )
     
-    def _select_final_columns(self, select_columns: dict, alias_to_df: dict) -> list:
+    @staticmethod
+    def _final_column_names(select_columns: dict, alias_columns: dict) -> Tuple[list, list]:
         """
-        Selects the final columns for the result DataFrame, handling duplicates.
+        Chooses the join result's columns as (alias, column) pairs.
 
-        :param select_columns: The dictionary of columns to select per alias.
-        :param alias_to_df: The dictionary of DataFrames indexed by alias.
+        Aliases listed in select_columns contribute those columns, in that order. Aliases not listed contribute
+        all their columns, in join order. When a column name repeats, the first one is kept.
+
+        :param select_columns: Columns to keep per alias; may be empty or list only some aliases.
+        :param alias_columns: Every joined alias with its input's columns, in join order.
+        :return: The (alias, column) pairs to select, and the "alias.column" names skipped as duplicates.
+        """
+        unknown = [alias for alias in select_columns if alias not in alias_columns]
+        if unknown:
+            raise ValueError(f"select_columns lists aliases that aren't joined: {', '.join(unknown)}")
+
+        ordered = [(alias, select_columns[alias]) for alias in select_columns]
+        ordered += [(alias, columns) for alias, columns in alias_columns.items() if alias not in select_columns]
+        selected, skipped, seen = [], [], set()
+        for alias, columns in ordered:
+            for column in columns:
+                if column in seen:
+                    skipped.append(f"{alias}.{column}")
+                else:
+                    seen.add(column)
+                    selected.append((alias, column))
+        return selected, skipped
+
+    def _select_final_columns(self, select_columns: dict, alias_columns: dict) -> list:
+        """
+        Builds the join result's columns (see _final_column_names), each named without its alias.
+
+        :param select_columns: Columns to keep per alias; aliases not listed keep all their columns.
+        :param alias_columns: Every joined alias with its input's columns, in join order.
         :return: A list of columns to select.
         """
-        final_columns = []
-        seen_columns = set()
-
-        for alias, columns in select_columns.items():
-            for col in columns:
-                qualified_col = f"{alias}.{col}"  # Fully qualified column name
-
-                if col not in seen_columns:
-                    seen_columns.add(col)
-                    final_columns.append(F.col(qualified_col).alias(col))
-                else:
-                    self.logger.info(f"Duplicate column detected and skipped: {qualified_col}")
-
-        return final_columns
+        selected, skipped = self._final_column_names(select_columns, alias_columns)
+        if skipped:
+            self.logger.info("Duplicate column names skipped in the join result: %s", ", ".join(skipped))
+        return [F.col(f"{alias}.{column}").alias(column) for alias, column in selected]
 
 
     def _apply_row_operations(self, df: DataFrame, row_operations: dict) -> DataFrame:
@@ -145,6 +163,8 @@ class DataTransformer(TableReader):
         # Process the first source table
         result_df = self._read_and_select(source_ids[0][YC.SOURCE_ID_KEY], source_ids[0][YC.ALIAS_KEY], select_columns, combine_path)
         alias_to_df = {source_ids[0][YC.ALIAS_KEY]: result_df}
+        # Each input's own columns, in join order, for the final column selection
+        alias_columns = {source_ids[0][YC.ALIAS_KEY]: result_df.columns}
 
         join_lookup = {
             (jc[YC.JOIN_CONDITIONS_LEFT_KEY], jc[YC.JOIN_CONDITIONS_RIGHT_KEY]): jc[YC.CONDITION_KEY]
@@ -157,6 +177,7 @@ class DataTransformer(TableReader):
             right_alias = right[YC.ALIAS_KEY]
             self.logger.info(f"Reading and selecting columns for source_id: {right[YC.SOURCE_ID_KEY]} with alias: {right_alias}")
             right_df = self._read_and_select(right[YC.SOURCE_ID_KEY], right_alias, select_columns, combine_path)
+            alias_columns[right_alias] = right_df.columns
 
             found_join = False
             for left_alias in alias_to_df.keys():
@@ -175,7 +196,7 @@ class DataTransformer(TableReader):
                 raise ValueError(f"No join condition found for {right_alias}")
 
         self.logger.info("Done applying joins")
-        final_columns = self._select_final_columns(select_columns, alias_to_df)
+        final_columns = self._select_final_columns(select_columns, alias_columns)
       
         result_df = result_df.select(*final_columns)  # Start from the first alias
         # Print the schema after all joins
@@ -211,6 +232,8 @@ class DataTransformer(TableReader):
         union_config = combine_config.get(YC.UNIONS_KEY)
         if not union_config:
             raise ValueError(f"No union configuration found for combine_id: {combine_id}")
+        if not isinstance(union_config, dict):
+            raise ValueError(f"'unions' in combine '{combine_id}' must be a mapping with source_ids, not a list")
     
         source_ids = union_config.get(YC.SOURCE_IDS_KEY, [])
         if not source_ids:

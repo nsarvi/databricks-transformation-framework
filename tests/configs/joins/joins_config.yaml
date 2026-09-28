@@ -61,6 +61,22 @@ combine:
         - condition: "s.price < 50"
       alias: "customer_sales"  # Alias for the combined table
 
+  # No select_columns: every column of both inputs, each name once (the first alias wins)
+  - combine_id: "combine_without_select_columns"
+    joins:
+      source_ids:
+        - source_id: "source_1"
+          alias: "c"
+          join_order: 1
+        - source_id: "source_2"
+          alias: "s"
+          join_order: 2
+          join_type: "inner"
+      join_conditions:
+        - left: "c"
+          right: "s"
+          condition: "c.customer_id = s.customer_id"
+
   - combine_id: "combine_with_and_condition"
     joins:
       join_id: "join_id_1"

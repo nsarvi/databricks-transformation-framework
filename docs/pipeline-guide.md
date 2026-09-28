@@ -535,7 +535,7 @@ combine:
 |---|---|---|
 | `source_ids` | list | Sources to join, at least two. Each has `source_id`, `alias`, `join_order` (joined in ascending order) and optional `join_type`: `inner` (default), `left`, `right`, `full`. The join type goes on the source being joined in, not the first one |
 | `join_conditions` | list | One per joined source: `left` (an alias already joined), `right` (the alias being joined) and a SQL `condition` using the aliases |
-| `select_columns` | map | **Required in practice.** Alias → columns to keep. Aliases not listed are left out of the result. When two aliases have the same column name, the first one listed is kept |
+| `select_columns` | map | Optional. Alias → columns to keep. Aliases not listed keep all their columns; without `select_columns`, every column of every input is kept. When a column name appears in more than one alias (e.g. the join key), the first is kept and the others are skipped (logged). Listing an alias that isn't joined is an error |
 | `post_join_filters` | list | `condition`s applied after the join and `select_columns`; use the output column names |
 | `row_operations` | map | Keep the top rows per group: `partition_by`, `order_by` (`column` and `order`: `asc` or `desc`), `rank_column` (default `row_number`), `filter_condition` (default `row_number = 1`) |
 | `alias` | str | Alias for the joined result |
@@ -728,7 +728,6 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 
 ## Known limitations
 
-- **`select_columns` is effectively required for joins,** see [joins](#joins).
 - **`source_alias` is not a key.** Use `merge_source_alias`; older configs with `source_alias` only work
   because the default is also `source`.
 
@@ -743,7 +742,8 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 | `TABLE_OR_VIEW_NOT_FOUND` / `SCHEMA_NOT_FOUND` | Placeholders resolved to the wrong catalog or schema; check the env file first, it wins over environment variables |
 | `COLUMN_NOT_FOUND_IN_SCHEMA` when creating a table | A `partition_by` or `cluster_by` column isn't in the data |
 | `No join condition found for <alias>` | Each joined source needs a `join_conditions` entry with `right: <alias>` and a `left` alias that's already joined |
-| Join returns no columns | `select_columns` is missing, or doesn't list the aliases |
+| `select_columns lists aliases that aren't joined` | An alias in `select_columns` doesn't match any `alias` in `source_ids` |
+| `'unions' in combine '<id>' must be a mapping` | Write `unions:` as a mapping with `source_ids`, not a list of entries |
 | `Combine configuration not found` / `Configuration not found for table_id` | The id in the call doesn't match the config |
 | `Combine '<id>' must define exactly one of 'unions' or 'joins'` | Split the combine in two and [chain them](#chaining-combines), or add the missing section |
 | `Combines refer to each other in a loop: a -> b -> a` | A combine uses itself as an input, directly or through others |

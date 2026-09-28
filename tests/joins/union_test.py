@@ -10,7 +10,6 @@ from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
 from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
@@ -71,20 +70,9 @@ class TestDataTransformer(unittest.TestCase):
         }[table_id]
 
         transformer = DataTransformer("tests/configs/transformers/union_config.yaml")
-        combine_id = "combine_id_1"
 
-        # Mock the combine lookup
-        transformer.combine_lookup = {
-            combine_id: {
-                YC.UNIONS_KEY: {
-                    YC.SOURCE_IDS_KEY: ["source_1", "source_2", "source_3", "source_4"],
-                    YC.DISTINCT_KEY: True
-                }
-            }
-        }
-
-        # Apply the union transformations
-        union_df = transformer.apply_unions(combine_id)
+        # Apply the union configured in union_config.yaml
+        union_df = transformer.apply_combine("combine_id_1")
         logger.info("union_df:\n%s", df_to_string(union_df))
         # Check if the union operation is correctly applied
         self.assertEqual(union_df.count(), self.df1.count() + self.df2.count() + self.df3.count() + self.df4.count())
@@ -106,20 +94,9 @@ class TestDataTransformer(unittest.TestCase):
         }[source_id]
 
         transformer = DataTransformer("tests/configs/transformers/union_config.yaml")
-        combine_id = "combine_id_2"
 
-        # Mock the combine lookup
-        transformer.combine_lookup = {
-            combine_id: {
-                YC.UNIONS_KEY: {
-                    YC.SOURCE_IDS_KEY: ["source_1", "source_2", "source_3", "source_4"],
-                    YC.DISTINCT_KEY: False
-                }
-            }
-        }
-
-        # Apply the union transformations
-        union_df = transformer.apply_unions(combine_id)
+        # Apply the union configured in union_config.yaml
+        union_df = transformer.apply_combine("combine_id_2")
         logger.info("union_df:\n%s", df_to_string(union_df))
         # Check if the union operation is correctly applied
         self.assertEqual(union_df.count(), self.df1.count() + self.df2.count() + self.df3.count() + self.df4.count())

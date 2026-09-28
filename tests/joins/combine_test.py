@@ -98,3 +98,10 @@ def test_id_that_is_both_source_and_combine_raises():
 
     with pytest.raises(ValueError, match="'s1' is both a source_id and a combine_id"):
         transformer.apply_combine("c")
+
+
+def test_unions_as_a_list_raise_a_clear_error():
+    transformer = make_transformer({"c": {"unions": [{"source_ids": ["s1", "s2"]}]}})
+
+    with pytest.raises(ValueError, match="'unions' in combine 'c' must be a mapping with source_ids, not a list"):
+        transformer.apply_combine("c")

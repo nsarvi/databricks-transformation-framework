@@ -128,6 +128,19 @@ class TestDataTransformer(unittest.TestCase):
         self.assertIn("trans_1", result_customer_ids, "trans_1 is not in the result set")
         self.assertIn("trans_3", result_customer_ids, "trans_3 is not in the result set")
 
+
+    def test_apply_joins_without_select_columns_keeps_all_columns(self):
+        """Without select_columns, the result has every column of both inputs, each name once."""
+        transformer = DataTransformer("tests/configs/joins/joins_config.yaml")
+        customer_columns = transformer.read_source_table("source_1").columns
+        sales_columns = transformer.read_source_table("source_2").columns
+
+        result_df = transformer.apply_joins("combine_without_select_columns")
+        logger.info("result_df:\n%s", df_to_string(result_df))
+
+        expected = customer_columns + [c for c in sales_columns if c not in customer_columns]
+        self.assertEqual(result_df.columns, expected)
+        self.assertGreater(result_df.count(), 0)
     
         
 if __name__ == "__main__":
