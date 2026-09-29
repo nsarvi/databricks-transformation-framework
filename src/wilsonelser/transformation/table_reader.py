@@ -1,13 +1,14 @@
 from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
 from pyspark.sql import DataFrame
-from typing import Optional
+from typing import Optional, Union
 from wilsonelser.transformation import yaml_constants as YC
+from wilsonelser.transformation.pipeline_config import PipelineConfig
 
 
 class TableReader(BaseDataTransformer):
     
-    def __init__(self, config_file: str, env_config_path: Optional[str] = None):
-        super().__init__(config_file, env_config_path)
+    def __init__(self, config: "Union[str, PipelineConfig]", env_config_path: Optional[str] = None):
+        super().__init__(config, env_config_path)
         
     def read_source_table(self, source_id: str) -> DataFrame:
         """Reads a source (table, stream, change feed or subquery) and applies its transformation_id, if any."""

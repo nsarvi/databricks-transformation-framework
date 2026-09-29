@@ -4,12 +4,13 @@ from pyspark.sql import DataFrame
 from wilsonelser.transformation  import yaml_constants as YC
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
+from wilsonelser.transformation.pipeline_config import PipelineConfig
 
 class DataTransformer(TableReader):
     
-    def __init__(self, config_file: str, env_config_path: Optional[str] = None):
-        super().__init__(config_file, env_config_path)
+    def __init__(self, config: "Union[str, PipelineConfig]", env_config_path: Optional[str] = None):
+        super().__init__(config, env_config_path)
   
     def _read_input(self, input_id: str, combine_path: Tuple[str, ...] = ()) -> DataFrame:
         """

@@ -9,7 +9,8 @@ from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from wilsonelser.transformation.data_transformer import DataTransformer
 from delta.tables import DeltaTable
-from typing import Optional, Dict, Any, overload, Callable
+from typing import Optional, Dict, Any, overload, Callable, Union
+from wilsonelser.transformation.pipeline_config import PipelineConfig
 import importlib
 
 class TableWriter(DataTransformer):
@@ -17,8 +18,8 @@ class TableWriter(DataTransformer):
     # How often a waiting streaming write logs progress
     STREAM_PROGRESS_INTERVAL_SECONDS = 30
 
-    def __init__(self, config_file: str, env_config_path: Optional[str] = None):
-        super().__init__(config_file, env_config_path)
+    def __init__(self, config: "Union[str, PipelineConfig]", env_config_path: Optional[str] = None):
+        super().__init__(config, env_config_path)
 
 
     @staticmethod

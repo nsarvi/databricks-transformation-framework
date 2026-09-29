@@ -26,9 +26,10 @@ targets:
 ```
 
 ```python
-from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.engine import TransformationEngine
 
-TableWriter("use_cases/sales/customers.yml", "config/env/dev.yaml").write_table("silver_customers")
+engine = TransformationEngine("use_cases/sales/customers.yml", env_config_file="auto")
+engine.write_table("silver_customers")
 ```
 
 ## Documentation

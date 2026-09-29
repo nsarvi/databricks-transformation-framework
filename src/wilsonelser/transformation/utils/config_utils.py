@@ -30,12 +30,13 @@ class ConfigUtils:
         return BaseIntegration._get_spark().conf.get("spark.databricks.workspaceUrl")
 
     @staticmethod
-    def current_env(workspace_url: Optional[str] = None, environments_file: str = ENVIRONMENTS_FILE) -> str:
+    def current_env(workspace_url: Optional[str] = None, environments_file: Optional[str] = None) -> str:
         """Returns the environment (e.g. "dev") whose workspace is the current one.
 
         Looks up the workspace URL, from the Spark session unless given, in the environments file
         (one `<env>: <workspace url>` line per environment).
         """
+        environments_file = environments_file or ConfigUtils.ENVIRONMENTS_FILE
         workspace_url = workspace_url or ConfigUtils._current_workspace_url()
         with open(ConfigUtils._resolve_path(environments_file)) as f:
             environments = yaml.safe_load(f) or {}
@@ -48,8 +49,9 @@ class ConfigUtils:
         return matches[0]
 
     @staticmethod
-    def env_config_file(workspace_url: Optional[str] = None, environments_file: str = ENVIRONMENTS_FILE) -> str:
+    def env_config_file(workspace_url: Optional[str] = None, environments_file: Optional[str] = None) -> str:
         """Returns the env config file for the current workspace, e.g. "config/env/dev.yaml"."""
+        environments_file = environments_file or ConfigUtils.ENVIRONMENTS_FILE
         env = ConfigUtils.current_env(workspace_url, environments_file)
         return str(Path(environments_file).parent / f"{env}.yaml")
 

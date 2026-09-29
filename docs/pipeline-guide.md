@@ -110,11 +110,10 @@ targets:
 Run it with one call:
 
 ```python
-from wilsonelser.transformation.table_writer import TableWriter
-from wilsonelser.transformation.utils.config_utils import ConfigUtils
+from wilsonelser.transformation.engine import TransformationEngine
 
-writer = TableWriter("use_cases/sales/customer_sales.yml", ConfigUtils.env_config_file())
-writer.write_table("silver_customer_sales")
+engine = TransformationEngine("use_cases/sales/customer_sales.yml", env_config_file="auto")
+engine.write_table("silver_customer_sales")
 ```
 
 `write_table` reads the target's `source_id` (here the `customer_sales` join, which reads and transforms
@@ -130,7 +129,7 @@ config/env/environments.yaml                the workspace of each environment
 config/env/dev.yaml                         environment values (catalog, schemas)
 use_cases/
   sales/                                    one folder per domain
-    customer_sales.yml                      the pipeline config
+    customer_sales.yml                      the pipeline config (or a customer_sales/ folder of YAML files)
     customer_sales.ipynb                    the notebook that runs it
     sqls/customer_sales.sql                 SQL used by transformation_sql_file
     schemas/customer_sales.json             table schemas used by schema_file
@@ -177,7 +176,8 @@ Placeholders work in any string value in the config, and in SQL files used by
 
 Each placeholder is resolved in this order:
 
-1. **The env config file** passed as the second argument, for example `TableWriter(config, "config/env/dev.yaml")`.
+1. **The env config file** passed as the second argument, for example
+   `TransformationEngine(config, "config/env/dev.yaml")`, or `"auto"` to pick it from the workspace (below).
    Env files are flat `name: value` mappings; the shared ones live in `config/env/`, one per environment.
 2. **An environment variable** with the same name, for example `catalog`. Useful in jobs and CI.
 
@@ -203,31 +203,56 @@ uat: adb-2345678901234567.8.azuredatabricks.net
 prod: adb-3456789012345678.9.azuredatabricks.net
 ```
 
-`ConfigUtils.env_config_file()` looks up the current workspace's URL in that file and returns the matching
-env file, e.g. `config/env/dev.yaml`. Pass it as the env config file, and the same notebook and config run
-unchanged in every environment, with no parameters:
+Pass `env_config_file="auto"` and the framework looks up the current workspace's URL in that file and uses
+the matching env file, e.g. `config/env/dev.yaml`. The same notebook and config then run unchanged in every
+environment, with no parameters:
 
 ```python
-from wilsonelser.transformation.utils.config_utils import ConfigUtils
-
-settings = ConfigUtils.load_config("use_cases/sales/config/sales_load.yml", ConfigUtils.env_config_file())
+engine = TransformationEngine("use_cases/sales/customer_sales.yml", env_config_file="auto")
 ```
+
+For other files, `ConfigUtils.env_config_file()` returns that env file path, e.g.
+`ConfigUtils.load_config("use_cases/sales/config/sales_load.yml", ConfigUtils.env_config_file())`.
 
 `ConfigUtils.current_env()` returns just the name (`dev`). Both fail with a clear message when the
 workspace isn't listed, or is listed under more than one environment.
 
 ## Running a pipeline
 
-**The classes.** Each class builds on the previous one, so `TableWriter` can do everything:
+**One engine per pipeline.** Create a `TransformationEngine` once from the pipeline's config, then work by id:
 
-| Class | Use it to |
+```python
+from wilsonelser.transformation.engine import TransformationEngine
+
+engine = TransformationEngine("use_cases/sales/customer_sales.yml", env_config_file="auto")
+engine.write_table("silver_customer_sales")        # read, transform, combine and write a target
+engine.read_source_table("customers")              # a source, with its transformation_id applied
+engine.apply_combine("customer_sales")             # a join or union
+engine.apply_transformations("clean", df)          # a transformation on any DataFrame
+```
+
+| Method | Use it to |
 |---|---|
-| `TableReader` | `read_source_table(source_id)`: read a source and apply its `transformation_id` |
-| `DataTransformer` | `apply_combine(combine_id)`: run a join or union; also `apply_joins` and `apply_unions` |
-| `TableWriter` | `write_table(table_id, df=None)`: write a target; `merge_into_target(table_id)` |
-| `BaseDataTransformer` | `apply_transformations(transformation_id, df)`: run a transformation on any DataFrame |
+| `write_table(table_id, df=None)` | Write a target; `merge_into_target(table_id)` for a merge on its own |
+| `read_source_table(source_id)` | Read a source and apply its `transformation_id` |
+| `apply_combine(combine_id)` | Run a join or union; also `apply_joins` and `apply_unions` |
+| `apply_transformations(transformation_id, df)` | Run a transformation on any DataFrame |
 
-All take `(config_file, env_config_file=None)`.
+**The config** is loaded, its placeholders resolved and its ids checked once, when the engine is created:
+
+- **A file or a folder.** Pass one YAML file, or a folder: every `*.yml`/`*.yaml` in it (and its subfolders,
+  in sorted order) is merged into one pipeline. `sources`, `transformations`, `combine` and `targets` are
+  combined across files; other sections such as `global_config` are merged, and the same key set in two
+  files is an error. Split a large pipeline by topic, e.g. `sources.yml`, `joins/`, `targets.yml`.
+- **Checked up front.** Ids must be unique, and every id the config refers to must exist: a source's
+  `transformation_id`, a combine's inputs, a target's `source_type`/`source_id`. All problems are
+  reported together, before any data is read or written.
+- **Loaded once, shared.** `PipelineConfig.load(path, env_config_file="auto")` from
+  `wilsonelser.transformation.pipeline_config` gives the loaded config; pass it to several engines, or build
+  one in code with `PipelineConfig.from_dict({...})`. `TransformationEngine(config)` then doesn't reload.
+
+`TableReader`, `DataTransformer`, `TableWriter` and `BaseDataTransformer` still work the same way, with the
+same arguments; `TransformationEngine` has everything they have.
 
 **Logs.** The framework logs at INFO to the notebook or job output (or to your own logging setup, if you
 have one). For more detail, set the environment variable `DTF_LOG_LEVEL=DEBUG` on the cluster or job, or call
@@ -755,6 +780,8 @@ def remove_leading_trailing_spaces(df: DataFrame) -> DataFrame:
 |---|---|
 | `No value for placeholder '${catalog}'` | Add `catalog` to the env file you pass, or set a `catalog` environment variable |
 | `Workspace ... must be listed exactly once in config/env/environments.yaml` | Add the workspace URL under its environment, or remove a duplicate |
+| `Invalid pipeline config ...` | Listed problems: a missing or duplicate id, or a reference to an id that isn't defined |
+| `No YAML files found in config folder` / `... in more than one file` | A config folder with no `*.yml`/`*.yaml` files, or two files setting the same key |
 | `Config file '...' not found. Attempted paths: ...` | Write the path relative to the repo root, and check the repo root is on `sys.path`; the error lists every location tried |
 | `ModuleNotFoundError: No module named 'use_cases'` | The repo root isn't on `sys.path`, see [Organizing a pipeline](#organizing-a-pipeline) |
 | `TABLE_OR_VIEW_NOT_FOUND` / `SCHEMA_NOT_FOUND` | Placeholders resolved to the wrong catalog or schema; check the env file first, it wins over environment variables |

@@ -76,6 +76,8 @@ Find cluster IDs with `databricks clusters list --profile <profile>`, or in the 
 
 ```
 src/wilsonelser/transformation/    the framework (the only code in the wheel)
+  engine.py                        TransformationEngine: the single entry point for pipelines
+  pipeline_config.py               PipelineConfig: loads a file or folder, resolves placeholders, validates ids
   yaml_constants.py                every config key, as a constant
   base_integration.py              config loading, Spark session, source reads, column/row operations
   base_data_transformer.py         apply_transformations: runs a transformation's operations
@@ -93,25 +95,37 @@ docs/                              these guides
 
 ## Architecture
 
-The public classes form one inheritance chain, so each adds to the previous:
+The public classes form one inheritance chain, so each adds to the previous. `TransformationEngine` is
+the entry point for pipelines; the other classes remain for existing callers:
 
 ```
-BaseIntegration ─► BaseDataTransformer ─► TableReader ─► DataTransformer ─► TableWriter
+BaseIntegration ─► BaseDataTransformer ─► TableReader ─► DataTransformer ─► TableWriter ─► TransformationEngine
  config, session     apply_transformations    read_source_table   joins, unions        write_table, merge
  operation helpers
 ```
 
-**Construction.** `BaseIntegration.__init__(config_file, env_config_path=None)`:
+**The config: `PipelineConfig`** (`pipeline_config.py`), loaded once and shared:
+
+1. `PipelineConfig.load(path, env_config_file)` finds the path like other config files, and reads one YAML
+   file or merges a folder's YAML files: list sections are concatenated, other mappings merged, and a key
+   set twice is an error.
+2. It resolves `${name}` placeholders from the env file, then environment variables, and fails on anything
+   unresolved (`ConfigUtils`). `env_config_file="auto"` picks the env file for the current workspace
+   through `config/env/environments.yaml`.
+3. It builds id → entry lookups and validates them: ids present and unique, and every referenced id
+   (`transformation_id`, combine inputs, target `source_type`/`source_id`) defined. All problems are
+   reported in one error.
+
+`PipelineConfig.from_dict()` builds one in code, for tests or generated configs.
+
+**Construction.** `BaseIntegration.__init__(config, env_config_path=None)` takes a path (loaded with
+`PipelineConfig.load`) or a `PipelineConfig`, which isn't reloaded:
 
 1. Gets a Spark session (`_get_spark`): Databricks Connect when it's installed, otherwise the active
    `SparkSession`. On a cluster the wheel runs without `databricks-connect`, so the import is inside the
    method.
-2. Loads the env file (`self.env_vars`) and the config, resolving `${name}` placeholders from the env
-   file, then environment variables, and failing on anything unresolved (`ConfigUtils`). Callers usually get
-   the env file from `ConfigUtils.env_config_file()`, which maps the current workspace URL to its
-   environment through `config/env/environments.yaml`.
-3. Builds id → entry lookups: `source_lookup`, `transformation_lookup`, `combine_lookup`,
-   `target_lookup`.
+2. Takes `config`, `env_vars`, `global_config` and the lookups (`source_lookup`, `transformation_lookup`,
+   `combine_lookup`, `target_lookup`) from the `PipelineConfig`.
 
 **Operations.** Each transformation operation is a static method in `BaseIntegration` that takes its
 config and returns a `DataFrame -> DataFrame` function, applied with `df.transform(...)`.

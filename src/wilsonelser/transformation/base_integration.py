@@ -1,25 +1,32 @@
 import importlib
-from typing import Any, Callable, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, Union, cast
 import re
 
 from pyspark.sql import DataFrame, SparkSession, Column
 from pyspark.sql import functions as F
 
 from wilsonelser.transformation import yaml_constants as YC
-from wilsonelser.transformation.utils.config_utils import ConfigUtils
+from wilsonelser.transformation.pipeline_config import PipelineConfig
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 
 
 class BaseIntegration:
-    def __init__(self, config_file: str, env_config_path: Optional[str] = None):
+    def __init__(self, config: Union[str, PipelineConfig], env_config_path: Optional[str] = None):
+        """
+        :param config: A PipelineConfig already loaded, or the path of a YAML file or folder to load
+                       (see PipelineConfig.load). Loading resolves placeholders and validates ids once.
+        :param env_config_path: Values for ${...} placeholders when `config` is a path: a file, "auto" for
+                                the current workspace's environment, or None for environment variables only.
+        """
         self.spark = self._get_spark()
-        self.env_vars = ConfigUtils.load_env_variables(env_config_path)
-        self.config = ConfigUtils.load_config(config_file, env_config_path)
-        self.global_config = self._load_global_config()
-        self.source_lookup = self._build_source_lookup()
-        self.transformation_lookup = self._build_transformation_lookup()
-        self.combine_lookup = self._build_combine_lookup()
-        self.target_lookup = self._build_target_lookup()
+        self.pipeline_config = config if isinstance(config, PipelineConfig) else PipelineConfig.load(config, env_config_path)
+        self.config = self.pipeline_config.data
+        self.env_vars = self.pipeline_config.env_vars
+        self.global_config = self.pipeline_config.global_config
+        self.source_lookup = self.pipeline_config.sources
+        self.transformation_lookup = self.pipeline_config.transformations
+        self.combine_lookup = self.pipeline_config.combines
+        self.target_lookup = self.pipeline_config.targets
         self.logger = LoggingHandler(__name__).get_logger()
 
     @staticmethod
@@ -36,40 +43,6 @@ class BaseIntegration:
         except Exception as e:
             logger.error("Error while getting SparkSession via Databricks Connect: %s", e)
             return SparkSession.builder.getOrCreate()
-
-    def _load_global_config(self) -> dict:
-        """Loads the global configuration from the config file."""
-        return self.config.get(YC.GLOBAL_CONFIG_KEY, {})
-
-
-    def _build_source_lookup(self) -> dict:
-        """Preprocess configs to lookup dictionary."""
-        return {
-            source[YC.SOURCE_ID_KEY]: source
-            for source in self.config.get(YC.SOURCES_KEY, [])
-        }
-
-    def _build_transformation_lookup(self) -> dict:
-        """Preprocess configs to lookup dictionary for transformations."""
-        return {
-            transformation[YC.ID_KEY]: transformation
-            for transformation in self.config.get(YC.TRANSFORMATIONS_KEY, [])
-        }
-
-
-    def _build_combine_lookup(self) -> dict:
-        """Preprocess configs to lookup dictionary for combine operations."""
-        return {
-            combine[YC.COMBINE_ID_KEY]: combine
-            for combine in self.config.get(YC.COMBINE_KEY, [])
-        }
-
-    def _build_target_lookup(self) -> dict:
-        """Preprocess configs to lookup dictionary for targets."""
-        return {
-            target[YC.TABLE_ID_KEY]: target
-            for target in self.config.get(YC.TARGETS_KEY, [])
-        }
 
     def _read_table(self, source_id: str) -> DataFrame:
         """Reads the source table based on the table_id."""
