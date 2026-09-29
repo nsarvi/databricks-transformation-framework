@@ -14,8 +14,8 @@ import unittest
 from datetime import datetime
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
-from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
 import random
+from wilsonelser.transformation.engine import TransformationEngine
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
 
@@ -26,7 +26,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Creates a Spark session  that will be used across all tests."""
-        cls.spark = BaseDataTransformer._get_spark()
+        cls.spark = TransformationEngine._get_spark()
 
     def setUp(self):
         """Creates a reusable DataFrame  with 10 rows."""
@@ -62,7 +62,7 @@ class TestDataTransformer(unittest.TestCase):
         transformation_id = "transformation_id_1"
 
         # Create an instance of the transformer
-        transformer = BaseDataTransformer("tests/configs/transformers/custom_function_config.yaml")
+        transformer = TransformationEngine("tests/configs/transformers/custom_function_config.yaml")
 
         # Apply transformations using the transformer
         transformed_df = transformer.apply_transformations(transformation_id, self.sample_dataframe)

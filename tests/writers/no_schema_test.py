@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
-from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.engine import TransformationEngine
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
@@ -26,7 +26,7 @@ class TestTableWriter(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = TableWriter._get_spark()
+        self.spark = TransformationEngine._get_spark()
         self.table_name_append=table_name("no_schema_customer_cluster_by")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.table_name_append}")
 
@@ -75,7 +75,7 @@ class TestTableWriter(unittest.TestCase):
         
     def test_write_table_using_config_file_with_no_schema_file(self):
         """Tests writing a DataFrame to a table with no schema."""
-        writer = TableWriter("tests/configs/targets/write_table_no_schema_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_table_no_schema_config.yaml")
         target_id = "target_customer_no_schema"
 
         # Write the DataFrame to the table

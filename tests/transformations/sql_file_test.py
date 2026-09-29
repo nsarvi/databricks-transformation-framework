@@ -8,8 +8,7 @@ import unittest
 from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
-from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.engine import TransformationEngine
 import pytest
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
@@ -23,7 +22,7 @@ class TestSQLTransformations(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Creates a Spark session and sets up test data."""
-        cls.spark = DataTransformer._get_spark()
+        cls.spark = TransformationEngine._get_spark()
 
         # Create test data for customer table
         customer_schema = StructType([
@@ -46,8 +45,8 @@ class TestSQLTransformations(unittest.TestCase):
         ]
         cls.customer_df = cls.spark.createDataFrame(customer_data, customer_schema)
 
-        # Write the DataFrame to the table using TableWriter
-        writer = TableWriter("tests/configs/sources/sql_file_source_config.yaml")
+        # Write the DataFrame to the table with the engine
+        writer = TransformationEngine("tests/configs/sources/sql_file_source_config.yaml")
         writer.write_table("source_customer_mapics", cls.customer_df)
 
         # Create test data for sales table
@@ -70,13 +69,13 @@ class TestSQLTransformations(unittest.TestCase):
         ]
         cls.sales_df = cls.spark.createDataFrame(sales_data, sales_schema)
 
-        # Write the DataFrame to the table using TableWriter
+        # Write the DataFrame to the table with the engine
         writer.write_table("source_sales_mapics", cls.sales_df)
 
 
     def test_sql_transformation(self):
         """Tests the SQL transformation using a configuration file."""
-        transformer = DataTransformer("tests/configs/transformers/transformation_sql_file_config.yaml")
+        transformer = TransformationEngine("tests/configs/transformers/transformation_sql_file_config.yaml")
         result_df = transformer.apply_transformations("transformation_id_1")
 
 

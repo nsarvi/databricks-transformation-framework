@@ -9,8 +9,7 @@ from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
-from wilsonelser.transformation.table_writer import TableWriter
-from wilsonelser.transformation.table_reader import TableReader
+from wilsonelser.transformation.engine import TransformationEngine
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
@@ -27,7 +26,7 @@ class TestTableWriter(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = TableWriter._get_spark()
+        self.spark = TransformationEngine._get_spark()
         self.stream_target_table_name=table_name("adm_target_customer_stream_1")
         self.stream_source_table_name=table_name("customer_mapics_stream_1")
         self.spark.sql(f"DROP TABLE IF EXISTS {self.stream_target_table_name}")
@@ -71,7 +70,7 @@ class TestTableWriter(unittest.TestCase):
 
 
         self.test_data_frame = self.spark.createDataFrame(data, self.schema)
-        writer = TableWriter("tests/configs/targets/write_stream_source_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_stream_source_tables_config.yaml")
         target_id = "source_customer_stream_1"
         writer.write_table(target_id,self.test_data_frame )
         
@@ -87,12 +86,12 @@ class TestTableWriter(unittest.TestCase):
         
     def test_write_stream_table_using_config_file_append(self):
         
-        table_reader = TableReader("tests/configs/targets/write_stream_tables_config.yaml")
+        table_reader = TransformationEngine("tests/configs/targets/write_stream_tables_config.yaml")
         
         # Read the streaming source table
         result_df = table_reader.read_source_table("source_customer_stream_1")
         
-        writer = TableWriter("tests/configs/targets/write_stream_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_stream_tables_config.yaml")
         target_id = "target_customer_stream_1"
 
         # Write the DataFrame to the table
@@ -128,11 +127,11 @@ class TestTableWriter(unittest.TestCase):
         ]
         
         self.test_data_frame = self.spark.createDataFrame(data_2, self.schema)
-        writer = TableWriter("tests/configs/targets/write_stream_source_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_stream_source_tables_config.yaml")
         target_id = "source_customer_stream_1"
         writer.write_table(target_id,self.test_data_frame )
         
-        writer = TableWriter("tests/configs/targets/write_stream_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_stream_tables_config.yaml")
         target_id = "target_customer_stream_1"
         # Read the updated streaming source table
         updated_result_df = table_reader.read_source_table("source_customer_stream_1")

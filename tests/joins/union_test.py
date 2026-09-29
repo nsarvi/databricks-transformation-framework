@@ -9,8 +9,7 @@ from unittest import mock
 from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
-from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.engine import TransformationEngine
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
 
@@ -21,7 +20,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = BaseDataTransformer._get_spark()
+        self.spark = TransformationEngine._get_spark()
 
     def setUp(self):
         """Creates reusable DataFrames for testing."""
@@ -69,7 +68,7 @@ class TestDataTransformer(unittest.TestCase):
             "source_4": self.df4
         }[table_id]
 
-        transformer = DataTransformer("tests/configs/transformers/union_config.yaml")
+        transformer = TransformationEngine("tests/configs/transformers/union_config.yaml")
 
         # Apply the union configured in union_config.yaml
         union_df = transformer.apply_combine("combine_id_1")
@@ -93,7 +92,7 @@ class TestDataTransformer(unittest.TestCase):
             "source_4": self.df4
         }[source_id]
 
-        transformer = DataTransformer("tests/configs/transformers/union_config.yaml")
+        transformer = TransformationEngine("tests/configs/transformers/union_config.yaml")
 
         # Apply the union configured in union_config.yaml
         union_df = transformer.apply_combine("combine_id_2")

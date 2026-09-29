@@ -11,9 +11,7 @@ from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
-from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation.table_writer import TableWriter
-from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.engine import TransformationEngine
 import pytest
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
@@ -26,7 +24,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = BaseDataTransformer._get_spark()
+        self.spark = TransformationEngine._get_spark()
 
        # Create test data for adm_customer_mapics table
         customer_schema = StructType([
@@ -56,8 +54,8 @@ class TestDataTransformer(unittest.TestCase):
         ]
         self.customer_df = self.spark.createDataFrame(customer_data, customer_schema)
 
-        # Write the DataFrame to the table using TableWriter
-        writer = TableWriter("tests/configs/joins/source_config.yaml")
+        # Write the DataFrame to the table with the engine
+        writer = TransformationEngine("tests/configs/joins/source_config.yaml")
         writer.write_table("source_customer_mapics",self.customer_df)
 
         # Create test data for adm_sales_mapics table
@@ -87,7 +85,7 @@ class TestDataTransformer(unittest.TestCase):
         ]
         self.sales_df = self.spark.createDataFrame(sales_data, sales_schema)
 
-        # Write the DataFrame to the table using TableWriter
+        # Write the DataFrame to the table with the engine
         writer.write_table("source_sales_mapics", self.sales_df)
 
     @classmethod
@@ -97,7 +95,7 @@ class TestDataTransformer(unittest.TestCase):
    
     def test_apply_joins(self):
         """Tests the apply_joins method."""
-        transformer = DataTransformer("tests/configs/joins/joins_config.yaml")
+        transformer = TransformationEngine("tests/configs/joins/joins_config.yaml")
         result_df = transformer.apply_joins("combine_id_1")
         
         logger.info("customer_df:\n%s", df_to_string(self.customer_df))
@@ -115,7 +113,7 @@ class TestDataTransformer(unittest.TestCase):
    #@unittest.skip("Its working, skip for now")
     def test_apply_joins_with_and_conditions(self):
         """Tests the apply_joins method with and conditions."""
-        transformer = DataTransformer("tests/configs/joins/joins_config.yaml")
+        transformer = TransformationEngine("tests/configs/joins/joins_config.yaml")
         result_df = transformer.apply_joins("combine_with_and_condition")
         
         logger.info("customer_df:\n%s", df_to_string(self.customer_df))
@@ -131,7 +129,7 @@ class TestDataTransformer(unittest.TestCase):
 
     def test_apply_joins_without_select_columns_keeps_all_columns(self):
         """Without select_columns, the result has every column of both inputs, each name once."""
-        transformer = DataTransformer("tests/configs/joins/joins_config.yaml")
+        transformer = TransformationEngine("tests/configs/joins/joins_config.yaml")
         customer_columns = transformer.read_source_table("source_1").columns
         sales_columns = transformer.read_source_table("source_2").columns
 

@@ -17,9 +17,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from typing import Optional
-from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation.table_writer import TableWriter
-from wilsonelser.transformation.table_reader import TableReader
+from wilsonelser.transformation.engine import TransformationEngine
 import pytest
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
@@ -32,7 +30,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = TableReader._get_spark()
+        self.spark = TransformationEngine._get_spark()
 
     def setUp(self):
        
@@ -64,8 +62,8 @@ class TestDataTransformer(unittest.TestCase):
         ]
         self.customer_df = self.spark.createDataFrame(customer_data, customer_schema)
 
-        # Write the DataFrame to the table using TableWriter
-        writer = TableWriter("tests/configs/sources/target_tables.yaml")
+        # Write the DataFrame to the table with the engine
+        writer = TransformationEngine("tests/configs/sources/target_tables.yaml")
         writer.write_table("source_customer_mapics",self.customer_df )
 
         # Create test data for adm_sales_mapics table
@@ -92,7 +90,7 @@ class TestDataTransformer(unittest.TestCase):
         ]
         self.sales_df = self.spark.createDataFrame(sales_data, sales_schema)
 
-        # Write the DataFrame to the table using TableWriter
+        # Write the DataFrame to the table with the engine
         writer.write_table("source_sales_mapics",self.sales_df, )
 
     @classmethod
@@ -102,7 +100,7 @@ class TestDataTransformer(unittest.TestCase):
     
     def test_table_reads(self):
         """Tests reading from the source tables and applying transformations."""
-        table_reader = TableReader("tests/configs/sources/read_tables_config.yaml")
+        table_reader = TransformationEngine("tests/configs/sources/read_tables_config.yaml")
         
         result_df = table_reader.read_source_table("source_1")
 
@@ -121,7 +119,7 @@ class TestDataTransformer(unittest.TestCase):
     
     def test_table_reads_using_environments(self):
         """Tests reading from the source tables and applying transformations using environments."""
-        table_reader = TableReader("tests/configs/sources/read_env_specific_tables_config.yaml", "tests/configs/env/test-env-config.yaml")
+        table_reader = TransformationEngine("tests/configs/sources/read_env_specific_tables_config.yaml", "tests/configs/env/test-env-config.yaml")
         
         result_df = table_reader.read_source_table("source_1")
 
@@ -141,7 +139,7 @@ class TestDataTransformer(unittest.TestCase):
     def test_table_reads_using_environment_file_from_root(self):
         """Tests reading from the source tables and applying transformations using environments."""
         
-        table_reader = TableReader("read_env_specific_tables_config.yaml", "test-env-config.yaml")
+        table_reader = TransformationEngine("read_env_specific_tables_config.yaml", "test-env-config.yaml")
         
         result_df = table_reader.read_source_table("source_1")
 

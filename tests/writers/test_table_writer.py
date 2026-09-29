@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from pyspark.sql import DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
-from wilsonelser.transformation.table_writer import TableWriter
+from wilsonelser.transformation.engine import TransformationEngine
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 from wilsonelser.transformation import yaml_constants as YC
 from datetime import datetime
@@ -26,7 +26,7 @@ class TestTableWriter(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = TableWriter._get_spark()
+        self.spark = TransformationEngine._get_spark()
         self.table_name_append=table_name("customer_append")
         self.table_name_overwrite=table_name("customer_overwrite")
         self.table_name_cluster_by=table_name("customer_cluster_by")
@@ -81,7 +81,7 @@ class TestTableWriter(unittest.TestCase):
         
     def test_write_table_using_config_file_append(self):
         """Tests writing a DataFrame to a table."""
-        writer = TableWriter("tests/configs/targets/write_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_tables_config.yaml")
         target_id = "target_customer_id_1"
 
 
@@ -123,7 +123,7 @@ class TestTableWriter(unittest.TestCase):
 
     def test_write_table_using_config_file_overwrite(self):
         """Tests writing a DataFrame to a table with overwrite mode."""
-        writer = TableWriter("tests/configs/targets/write_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_tables_config.yaml")
         target_id = "target_customer_id_2"
 
         # Write the DataFrame to the table
@@ -159,7 +159,7 @@ class TestTableWriter(unittest.TestCase):
 
     def test_write_table_using_config_file_cluster_by(self):
         """Tests writing a DataFrame to a table with cluster by."""
-        writer = TableWriter("tests/configs/targets/write_tables_config.yaml")
+        writer = TransformationEngine("tests/configs/targets/write_tables_config.yaml")
         target_id = "target_customer_id_3"
 
 

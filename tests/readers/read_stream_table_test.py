@@ -12,9 +12,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from typing import Optional
-from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation.table_writer import TableWriter
-from wilsonelser.transformation.table_reader import TableReader
+from wilsonelser.transformation.engine import TransformationEngine
 import pytest
 from integration_env import table_name
 
@@ -25,7 +23,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = TableReader._get_spark()
+        self.spark = TransformationEngine._get_spark()
 
     def setUp(self):
         self.table_name_customer_stream = table_name("customer_mapics_stream_1")
@@ -58,8 +56,8 @@ class TestDataTransformer(unittest.TestCase):
         ]
         self.customer_df = self.spark.createDataFrame(customer_data, customer_schema)
 
-        # Write the DataFrame to the table using TableWriter
-        writer = TableWriter("tests/configs/sources/target_tables.yaml")
+        # Write the DataFrame to the table with the engine
+        writer = TransformationEngine("tests/configs/sources/target_tables.yaml")
         writer.write_table("source_customer_mapics_st",self.customer_df )
 
         
@@ -70,7 +68,7 @@ class TestDataTransformer(unittest.TestCase):
 
     def test_stream_table_reads(self):
         """Tests reading from the source tables and applying transformations using streaming APIs."""
-        table_reader = TableReader("tests/configs/sources/read_stream_tables_config.yaml")
+        table_reader = TransformationEngine("tests/configs/sources/read_stream_tables_config.yaml")
         
         # Read the streaming source table
         result_df = table_reader.read_source_table("source_stream_tab_1")

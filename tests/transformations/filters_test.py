@@ -9,7 +9,7 @@ from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
-from wilsonelser.transformation.base_data_transformer import BaseDataTransformer
+from wilsonelser.transformation.engine import TransformationEngine
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
 
@@ -20,7 +20,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Creates a Spark session  that will be used across all tests."""
-        cls.spark = BaseDataTransformer._get_spark()
+        cls.spark = TransformationEngine._get_spark()
 
     def setUp(self):
         """Creates a reusable DataFrame  with 10 rows."""
@@ -42,7 +42,7 @@ class TestDataTransformer(unittest.TestCase):
 
     def test_apply_transformations(self):
         """Tests transformation logic on the DataFrame."""
-        transformer = BaseDataTransformer("tests/configs/transformers/filters_column_conditions_config.yaml")
+        transformer = TransformationEngine("tests/configs/transformers/filters_column_conditions_config.yaml")
         transformation_id = "transformation_id_1"
         # Apply transformation
         transformed_df = transformer.apply_transformations(transformation_id, self.test_dataframe)

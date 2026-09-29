@@ -12,9 +12,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType, Row
 from typing import Optional
-from wilsonelser.transformation.data_transformer import DataTransformer
-from wilsonelser.transformation.table_writer import TableWriter
-from wilsonelser.transformation.table_reader import TableReader
+from wilsonelser.transformation.engine import TransformationEngine
 import pytest
 from wilsonelser.transformation.utils.logging_utils import LoggingHandler
 from log_helpers import df_to_string
@@ -28,7 +26,7 @@ class TestDataTransformer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         """Creates a Spark session that will be used across all tests."""
-        self.spark = TableReader._get_spark()
+        self.spark = TransformationEngine._get_spark()
         self.table_name_customer_mapics=table_name("customer_mapics")
 
              
@@ -63,8 +61,8 @@ class TestDataTransformer(unittest.TestCase):
         ]
         self.customer_df = self.spark.createDataFrame(customer_data, customer_schema)
 
-        # Write the DataFrame to the table using TableWriter
-        writer = TableWriter("tests/configs/sources/target_tables.yaml")
+        # Write the DataFrame to the table with the engine
+        writer = TransformationEngine("tests/configs/sources/target_tables.yaml")
         writer.write_table("source_customer_mapics",self.customer_df )
 
        
@@ -76,7 +74,7 @@ class TestDataTransformer(unittest.TestCase):
     def test_subquery_execution(self):
         """Tests reading from a subquery and joining with another source."""
         # Initialize the table reader
-        table_reader = TableReader("tests/configs/sources/read_from_subquery_config.yaml")
+        table_reader = TransformationEngine("tests/configs/sources/read_from_subquery_config.yaml")
 
         # Read the subquery source
         subquery_df = table_reader.read_source_table("sapitmxref_subquery")
