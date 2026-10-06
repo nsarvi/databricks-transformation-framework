@@ -2,7 +2,8 @@
 
 These tests never read data: they load every config in use_cases/ and config/env/ with dummy values
 for ${...} placeholders, so YAML errors and missing ids are caught before a job runs.
-Backup folders (bkp/) and bundle job definitions (resources/) are not pipeline configs and are skipped.
+Backup folders (bkp/), bundle job definitions (resources/) and DQ table files (config/tables/) are not
+pipeline configs; DQ table files get their own structural test.
 """
 import re
 from pathlib import Path
@@ -14,8 +15,11 @@ from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# DQ table files: a table and its rules grouped by column, each rule with a DQX check
+DQ_TABLE_DIRS = sorted({p.parent for p in (REPO_ROOT / "use_cases").rglob("config/tables/*.yml")})
 PIPELINE_CONFIGS = sorted(
-    p for p in (REPO_ROOT / "use_cases").rglob("*.yml") if "bkp" not in p.parts and "resources" not in p.parts
+    p for p in (REPO_ROOT / "use_cases").rglob("*.yml")
+    if not {"bkp", "resources"} & set(p.parts) and p.parent not in DQ_TABLE_DIRS
 )
 ENV_CONFIGS = sorted((REPO_ROOT / "config" / "env").glob("*.yaml"))
 
@@ -52,3 +56,32 @@ def test_env_config_is_flat_mapping(env_path):
     assert isinstance(values, dict), "env config must be a YAML mapping"
     for key, value in values.items():
         assert not isinstance(value, (dict, list)), f"'{key}' must be a single value to fill ${{{key}}}"
+
+
+def _table_rules(table: dict) -> list:
+    rules = [rule for column in (table.get("columns") or {}).values() for rule in column.get("rules") or []]
+    return rules + list(table.get("table_rules") or [])
+
+
+@pytest.mark.parametrize("tables_dir", DQ_TABLE_DIRS, ids=_relative)
+def test_dq_table_files_are_well_formed(tables_dir):
+    tables = {path.name: yaml.safe_load(path.read_text()) for path in sorted(tables_dir.glob("*.yml"))}
+
+    rule_ids = [rule.get("rule_id") for table in tables.values() for rule in _table_rules(table)]
+    assert all(rule_ids), "every rule needs a rule_id"
+    assert len(rule_ids) == len(set(rule_ids)), "rule_ids must be unique across all table files"
+    for name, table in tables.items():
+        assert table.get("source_table") and table.get("table"), f"{name}: needs source_table and table"
+        assert table.get("columns") or table.get("table_rules"), f"{name}: needs columns or table_rules"
+        for rule in _table_rules(table):
+            rule_id = rule["rule_id"]
+            assert (rule.get("check") or {}).get("function"), f"{rule_id}: needs check.function"
+            assert rule.get("criticality", "error") in ("error", "warn"), f"{rule_id}: criticality must be error or warn"
+            for key in ("minimum_threshold", "target_threshold"):
+                value = rule.get(key)
+                assert value is None or (isinstance(value, (int, float)) and 0 <= value <= 100), f"{rule_id}: {key} must be 0-100"
+            # DQX reads a bare string in a value list as a column name; text values must be quoted, e.g. "'OPEN'"
+            if rule["check"]["function"] in ("is_in_list", "is_not_in_list", "is_not_null_and_is_in_list"):
+                for value in rule["check"].get("arguments", {}).get("allowed", []):
+                    if isinstance(value, str):
+                        assert value.startswith("'") and value.endswith("'"), f"{rule_id}: quote text values in allowed, e.g. \"'{value}'\""

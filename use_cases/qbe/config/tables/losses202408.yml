@@ -1,0 +1,43 @@
+# DQ rules for dsi_dev.adv_db.losses202408, grouped by column. Used by use_cases/qbe/qbe_validation.ipynb.
+#
+# STAND-IN: dsi_dev.adv_db isn't in this workspace, so an Expert Sierra Raw table is read for testing.
+# To validate the real table, set `table` to "${source_catalog}.adv_db.losses202408" and remove the `physical_column` lines.
+# ${source_catalog} is the notebook's `source_catalog` parameter (default in qbe_validation.yml).
+source_table: "dsi_dev.adv_db.losses202408"         # the catalog's Database.Schema.Table
+table: "${source_catalog}.dbo_raw.blt_bill_amt"      # the table actually read
+record_columns: ["ROW_UNO", "BILLM_UNO", "medicalreserve"]   # stored with each failure; omit for the full row
+
+columns:
+  medicalreserve:
+    physical_column: "FEES_AMT"                       # only while the read table's column name differs
+    business_term: "Case Medical Reserve"
+    cde_id: null
+    rules:
+      - rule_id: "DQ-CLM-0004"
+        rule_name: "Case Medical Reserve - Numeric"
+        description: "Case Medical Reserve must be castable to decimal"
+        dq_dimension: "Validity"
+        boundary_conditions: null
+        minimum_threshold: null
+        target_threshold: 99.5
+        check:
+          function: sql_expression                   # NULLs pass here; only non-numeric values fail
+          arguments:
+            expression: "medicalreserve IS NULL OR try_cast(medicalreserve AS DECIMAL(38, 10)) IS NOT NULL"
+            msg: "Column 'medicalreserve' value is not a valid decimal"
+
+      - rule_id: "DQ-CLM-0005"
+        rule_name: "Case Medical Reserve - Non Negative"
+        description: "Case Medical Reserve must be greater than or equal to zero"
+        dq_dimension: "Validity"
+        boundary_conditions: null
+        minimum_threshold: null
+        target_threshold: 99.5
+        check:
+          function: sql_expression                   # non-numeric values pass here; DQ-CLM-0004 covers them
+          arguments:
+            expression: "try_cast(medicalreserve AS DECIMAL(38, 10)) IS NULL OR try_cast(medicalreserve AS DECIMAL(38, 10)) >= 0"
+            msg: "Column 'medicalreserve' value is negative"
+
+# Rules over several columns or the whole table (e.g. a unique composite key); none yet
+table_rules: []

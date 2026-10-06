@@ -1,0 +1,29 @@
+# QBE data validation with Databricks Labs DQX, used by use_cases/qbe/qbe_validation.ipynb.
+# File paths are relative to the use_cases/qbe folder.
+qbe_validation:
+  # Values for ${name} in this file and the table files. Each is also a notebook parameter (widget) with this
+  # default, so a job parameter or a manual run can pass another value, e.g. source_catalog = dsi_prod.
+  variables:
+    source_catalog: "expertsierra_dev"   # catalog of the tables the rules read
+    results_catalog: "nsarvi_db"         # catalog of the results tables
+
+  # One YAML file per table: the table to read, and its rules grouped by column (see config/tables/*.yml)
+  tables_dir: "config/tables"
+
+  # Results are written once per run. The schema must exist before the first run.
+  #   enabled: false   don't write this result
+  #   mode:    append (keep every run's results) | overwrite (keep only the latest run's results)
+  results:
+    # One row per rule per run: rows checked, rows failed, pass rate, thresholds and whether they were met
+    rule_summary:
+      enabled: true
+      table: "${results_catalog}.nsarvi_test.qbe_dq_rule_summary"
+      mode: "append"
+    # One row per failing record per rule: rule_id, rule_name, message, and the failing record as JSON
+    failed_records:
+      enabled: true
+      table: "${results_catalog}.nsarvi_test.qbe_dq_failed_records"
+      mode: "append"
+
+  # Fail the notebook (and its job) when an error-level rule is below its target threshold
+  fail_on_threshold_breach: false
