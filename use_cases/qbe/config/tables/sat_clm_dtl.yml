@@ -2,7 +2,10 @@
 #
 # STAND-IN: dsi_dev.adv_db isn't in this workspace, so an Expert Sierra Raw table is read for testing.
 # To validate the real table, set `table` to "${source_catalog}.adv_db.sat_clm_dtl" and remove the `physical_column` lines.
-# ${source_catalog} is the notebook's `source_catalog` parameter (default in qbe_validation.yml).
+# ${source_catalog} is the notebook's `source_catalog` parameter (default in config/validation.yml).
+#
+# Optional per rule: `filter: "<SQL condition>"` (DQX's check filter) checks only the matching rows, and the
+# rule's pass rate counts only those rows, e.g. filter: "CLM_STATUS <> 'CLOSED'".
 source_table: "dsi_dev.adv_db.sat_clm_dtl"          # the catalog's Database.Schema.Table
 table: "${source_catalog}.dbo_raw.hbm_matter"        # the table actually read
 record_columns: ["MATTER_UNO", "CLM_NBR", "QBE_CLM_STS_DESCR"]   # stored with each failure; omit for the full row
@@ -11,13 +14,11 @@ columns:
   CLM_NBR:
     physical_column: "MATTER_CODE"                    # only while the read table's column name differs
     business_term: "Claim Number"
-    cde_id: null
     rules:
       - rule_id: "DQ-CLM-0001"
         rule_name: "Claim Number - Not Null or Blank"
         description: "Claim Number - Not Null or Blank"
         dq_dimension: "Completeness"
-        boundary_conditions: null
         minimum_threshold: null
         target_threshold: 100
         check:
@@ -28,13 +29,11 @@ columns:
   QBE_CLM_STS_DESCR:
     physical_column: "STATUS_CODE"
     business_term: "Claim Status"
-    cde_id: null
     rules:
       - rule_id: "DQ-CLM-0002"
         rule_name: "Claim Status - Not Null or Blank"
         description: "Claim Status - Not Null or Blank"
         dq_dimension: "Completeness"
-        boundary_conditions: null
         minimum_threshold: null
         target_threshold: 100
         check:
@@ -46,7 +45,6 @@ columns:
         rule_name: "Claim Status - Validity"
         description: "Claim Status is in the approved list of values"
         dq_dimension: "Validity"
-        boundary_conditions: null
         minimum_threshold: null
         target_threshold: 100
         check:
