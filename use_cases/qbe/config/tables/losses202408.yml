@@ -1,42 +1,18 @@
-# DQ rules for dsi_dev.adv_db.losses202408, grouped by column. Used by use_cases/qbe/qbe_validation.ipynb.
+# DQ rules for dsi_dev.adv_db.losses202408. Used by use_cases/qbe/qbe_validation.ipynb.
 #
-# STAND-IN: dsi_dev.adv_db isn't in this workspace, so an Expert Sierra Raw table is read for testing.
-# To validate the real table, set `table` to "${source_catalog}.adv_db.losses202408" and remove the `physical_column` lines.
+# The column files and record_columns use the catalog's column names, so the table read must have them.
+# Once dsi_dev.adv_db is in this workspace, set `table` to "${source_catalog}.adv_db.losses202408". Until then
+# the stand-in Raw table below doesn't have these columns, so its rules end with threshold_status "error".
 # ${source_catalog} is the notebook's `source_catalog` parameter (default in config/validation.yml).
 #
+# Each column's rules are in its own file, listed under `columns` (paths relative to this file).
 # Optional per rule: `filter: "<SQL condition>"` (DQX's check filter) checks only the matching rows, and the
 # rule's pass rate counts only those rows, e.g. filter: "CLM_STATUS <> 'CLOSED'".
 table: "${source_catalog}.dbo_raw.blt_bill_amt"      # the table read; also its name in the results
-record_columns: ["ROW_UNO", "BILLM_UNO", "medicalreserve"]   # stored with each failure; omit for the full row
+record_columns: ["medicalreserve"]   # stored with each failure; omit for the full row
 
 columns:
-  medicalreserve:
-    physical_column: "FEES_AMT"                       # only while the read table's column name differs
-    business_term: "Case Medical Reserve"
-    rules:
-      - rule_id: "DQ-CLM-0004"
-        rule_name: "Case Medical Reserve - Numeric"
-        description: "Case Medical Reserve must be castable to decimal"
-        dq_dimension: "Validity"
-        minimum_threshold: null
-        target_threshold: 99.5
-        check:
-          function: sql_expression                   # NULLs pass here; only non-numeric values fail
-          arguments:
-            expression: "medicalreserve IS NULL OR try_cast(medicalreserve AS DECIMAL(38, 10)) IS NOT NULL"
-            msg: "Column 'medicalreserve' value is not a valid decimal"
-
-      - rule_id: "DQ-CLM-0005"
-        rule_name: "Case Medical Reserve - Non Negative"
-        description: "Case Medical Reserve must be greater than or equal to zero"
-        dq_dimension: "Validity"
-        minimum_threshold: null
-        target_threshold: 99.5
-        check:
-          function: sql_expression                   # non-numeric values pass here; DQ-CLM-0004 covers them
-          arguments:
-            expression: "try_cast(medicalreserve AS DECIMAL(38, 10)) IS NULL OR try_cast(medicalreserve AS DECIMAL(38, 10)) >= 0"
-            msg: "Column 'medicalreserve' value is negative"
+  - losses202408/medicalreserve.yml
 
 # Rules over several columns or the whole table (e.g. a unique composite key); none yet
 table_rules: []

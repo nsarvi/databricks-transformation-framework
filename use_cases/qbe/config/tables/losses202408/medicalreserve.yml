@@ -1,0 +1,27 @@
+# Rules for column medicalreserve of the table in ../losses202408.yml
+column: "medicalreserve"
+business_term: "Case Medical Reserve"
+rules:
+  - rule_id: "DQ-CLM-0004"
+    rule_name: "Case Medical Reserve - Numeric"
+    description: "Case Medical Reserve must be castable to decimal"
+    dq_dimension: "Validity"
+    minimum_threshold: null
+    target_threshold: 99.5
+    check:
+      function: sql_expression                   # NULLs pass here; only non-numeric values fail
+      arguments:
+        expression: "medicalreserve IS NULL OR try_cast(medicalreserve AS DECIMAL(38, 10)) IS NOT NULL"
+        msg: "Column 'medicalreserve' value is not a valid decimal"
+
+  - rule_id: "DQ-CLM-0005"
+    rule_name: "Case Medical Reserve - Non Negative"
+    description: "Case Medical Reserve must be greater than or equal to zero"
+    dq_dimension: "Validity"
+    minimum_threshold: null
+    target_threshold: 99.5
+    check:
+      function: sql_expression                   # non-numeric values pass here; DQ-CLM-0004 covers them
+      arguments:
+        expression: "try_cast(medicalreserve AS DECIMAL(38, 10)) IS NULL OR try_cast(medicalreserve AS DECIMAL(38, 10)) >= 0"
+        msg: "Column 'medicalreserve' value is negative"

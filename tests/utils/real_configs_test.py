@@ -2,8 +2,8 @@
 
 These tests never read data: they load every config in use_cases/ and config/env/ with dummy values
 for ${...} placeholders, so YAML errors and missing ids are caught before a job runs.
-Backup folders (bkp/), bundle job definitions (resources/) and DQ table files (config/tables/) are not
-pipeline configs; DQ table files get their own structural test.
+Backup folders (bkp/), bundle job definitions (resources/) and DQ table and column files (config/tables/) are
+not pipeline configs; DQ table files get their own structural test.
 """
 import re
 from pathlib import Path
@@ -15,11 +15,12 @@ from wilsonelser.transformation import yaml_constants as YC
 from wilsonelser.transformation.utils.config_utils import ConfigUtils
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-# DQ table files: a table and its rules grouped by column, each rule with a DQX check
+# DQ table files (config/tables/<table>.yml) list their column files (config/tables/<table>/<column>.yml),
+# each with the column's rules and every rule with a DQX check
 DQ_TABLE_DIRS = sorted({p.parent for p in (REPO_ROOT / "use_cases").rglob("config/tables/*.yml")})
 PIPELINE_CONFIGS = sorted(
     p for p in (REPO_ROOT / "use_cases").rglob("*.yml")
-    if not {"bkp", "resources"} & set(p.parts) and p.parent not in DQ_TABLE_DIRS
+    if not {"bkp", "resources"} & set(p.parts) and not any(d == p.parent or d in p.parents for d in DQ_TABLE_DIRS)
 )
 ENV_CONFIGS = sorted((REPO_ROOT / "config" / "env").glob("*.yaml"))
 
@@ -58,14 +59,31 @@ def test_env_config_is_flat_mapping(env_path):
         assert not isinstance(value, (dict, list)), f"'{key}' must be a single value to fill ${{{key}}}"
 
 
+def _load_dq_table(path: Path) -> dict:
+    """A table file with its listed column files read in, as the QBE notebook does."""
+    table = yaml.safe_load(path.read_text())
+    column_files = table.get("columns") or []
+    assert isinstance(column_files, list), f"{path.name}: columns must list column files"
+    columns = []
+    for column_file in column_files:
+        column_path = path.parent / column_file
+        assert column_path.is_file(), f"{path.name}: column file {column_file} not found"
+        column = yaml.safe_load(column_path.read_text())
+        assert column.get("column"), f"{column_file}: needs column"
+        columns.append(column)
+    names = [column["column"] for column in columns]
+    assert len(names) == len(set(names)), f"{path.name}: a column is in more than one column file"
+    return {**table, "columns": columns}
+
+
 def _table_rules(table: dict) -> list:
-    rules = [rule for column in (table.get("columns") or {}).values() for rule in column.get("rules") or []]
+    rules = [rule for column in table["columns"] for rule in column.get("rules") or []]
     return rules + list(table.get("table_rules") or [])
 
 
 @pytest.mark.parametrize("tables_dir", DQ_TABLE_DIRS, ids=_relative)
 def test_dq_table_files_are_well_formed(tables_dir):
-    tables = {path.name: yaml.safe_load(path.read_text()) for path in sorted(tables_dir.glob("*.yml"))}
+    tables = {path.name: _load_dq_table(path) for path in sorted(tables_dir.glob("*.yml"))}
 
     rule_ids = [rule.get("rule_id") for table in tables.values() for rule in _table_rules(table)]
     assert all(rule_ids), "every rule needs a rule_id"

@@ -1,0 +1,14 @@
+# Rules for column CLM_NBR of the table in ../sat_clm_dtl.yml
+column: "CLM_NBR"
+business_term: "Claim Number"
+rules:
+  - rule_id: "DQ-CLM-0001"
+    rule_name: "Claim Number - Not Null or Blank"
+    description: "Claim Number - Not Null or Blank"
+    dq_dimension: "Completeness"
+    minimum_threshold: null
+    target_threshold: 100
+    check:
+      function: is_not_null_and_not_empty
+      arguments:
+        trim_strings: true

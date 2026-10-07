@@ -1,0 +1,28 @@
+# Rules for column QBE_CLM_STS_DESCR of the table in ../sat_clm_dtl.yml
+column: "QBE_CLM_STS_DESCR"
+business_term: "Claim Status"
+rules:
+  - rule_id: "DQ-CLM-0002"
+    rule_name: "Claim Status - Not Null or Blank"
+    description: "Claim Status - Not Null or Blank"
+    dq_dimension: "Completeness"
+    minimum_threshold: null
+    target_threshold: 100
+    check:
+      function: is_not_null_and_not_empty
+      arguments:
+        trim_strings: true
+
+  - rule_id: "DQ-CLM-0003"
+    rule_name: "Claim Status - Validity"
+    description: "Claim Status is in the approved list of values"
+    dq_dimension: "Validity"
+    minimum_threshold: null
+    target_threshold: 100
+    check:
+      function: is_in_list                       # NULLs pass here; DQ-CLM-0002 covers them
+      arguments:
+        # PLACEHOLDER: sample status codes. Replace with the approved QBE claim status values.
+        # DQX reads a bare string as a column name: quote each text value inside the YAML string, e.g. "'OPEN'".
+        allowed: ["'OPEN'", "'CLOSE'", "'PRECL'"]
+        case_sensitive: true
