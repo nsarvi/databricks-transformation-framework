@@ -71,7 +71,8 @@ def test_dq_table_files_are_well_formed(tables_dir):
     assert all(rule_ids), "every rule needs a rule_id"
     assert len(rule_ids) == len(set(rule_ids)), "rule_ids must be unique across all table files"
     for name, table in tables.items():
-        assert table.get("source_table") and table.get("table"), f"{name}: needs source_table and table"
+        assert table.get("table"), f"{name}: needs table"
+        assert "source_table" not in table, f"{name}: source_table was removed; set only table"
         assert table.get("columns") or table.get("table_rules"), f"{name}: needs columns or table_rules"
         for rule in _table_rules(table):
             rule_id = rule["rule_id"]

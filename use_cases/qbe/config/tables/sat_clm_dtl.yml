@@ -6,8 +6,7 @@
 #
 # Optional per rule: `filter: "<SQL condition>"` (DQX's check filter) checks only the matching rows, and the
 # rule's pass rate counts only those rows, e.g. filter: "CLM_STATUS <> 'CLOSED'".
-source_table: "dsi_dev.adv_db.sat_clm_dtl"          # the catalog's Database.Schema.Table
-table: "${source_catalog}.dbo_raw.hbm_matter"        # the table actually read
+table: "${source_catalog}.dbo_raw.hbm_matter"        # the table read; also its name in the results
 record_columns: ["MATTER_UNO", "CLM_NBR", "QBE_CLM_STS_DESCR"]   # stored with each failure; omit for the full row
 
 columns:
