@@ -1,4 +1,4 @@
-# QBE data validation with Databricks Labs DQX, used by use_cases/qbe/qbe_validation.ipynb.
+# QBE data validation with Databricks Labs DQX, used by use_cases/qbe/notebooks/qbe_validation.ipynb.
 # File paths are relative to the use_cases/qbe folder.
 validation:
   # Values for ${name} in this file and the table files. Each is also a notebook parameter (widget) with this
@@ -6,6 +6,14 @@ validation:
   variables:
     source_catalog: "expertsierra_dev"   # catalog of the tables the rules read
     results_catalog: "nsarvi_db"         # catalog of the results tables
+    rules_source: "yaml"                 # where the rules are read from: yaml or table (see rules below)
+
+  # Where the notebook reads the rules from (the rules_source variable):
+  #   yaml    the files in config/tables (one per table, listing one file per column)
+  #   table   the rules table below; notebooks/qbe_sync_rules.ipynb syncs it from the YAML files
+  rules:
+    source: "${rules_source}"
+    table: "${results_catalog}.nsarvi_test.qbe_dq_rules"
 
   # Results are written once per run. The schema must exist before the first run.
   #   enabled: false   don't write this result

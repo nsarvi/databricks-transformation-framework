@@ -1,4 +1,4 @@
-# DQ rules for dsi_dev.adv_db.sat_clm_dtl. Used by use_cases/qbe/qbe_validation.ipynb.
+# DQ rules for dsi_dev.adv_db.sat_clm_dtl. Used by use_cases/qbe/notebooks/qbe_validation.ipynb.
 #
 # The column files and record_columns use the catalog's column names, so the table read must have them.
 # Once dsi_dev.adv_db is in this workspace, set `table` to "${source_catalog}.adv_db.sat_clm_dtl". Until then

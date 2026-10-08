@@ -1,0 +1,30 @@
+# Job that writes the QBE rules in the YAML files (use_cases/qbe/config/tables) to the rules table
+# (rules.table in config/validation.yml), replacing its rows. Run it after changing the YAML files:
+#   databricks bundle run qbe_sync_rules_job --target <target> --profile <profile>
+# qbe_validation_job then reads the table when rules.source is "table".
+resources:
+  jobs:
+    qbe_sync_rules_job:
+      name: qbe_sync_rules
+
+      parameters:
+        - name: results_catalog                 # catalog of the rules table
+          default: ${var.qbe_results_catalog}
+
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+
+      tasks:
+        - task_key: qbe_sync_rules
+          job_cluster_key: qbe_rules_cluster
+          notebook_task:
+            notebook_path: ../notebooks/qbe_sync_rules.ipynb
+
+      job_clusters:
+        - job_cluster_key: qbe_rules_cluster
+          new_cluster:
+            spark_version: 18.x-scala2.13
+            node_type_id: Standard_D3_v2
+            data_security_mode: SINGLE_USER     # Unity Catalog access for the rules table
+            num_workers: 1

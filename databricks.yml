@@ -22,6 +22,9 @@ variables:
   qbe_results_catalog:
     description: "Catalog of the QBE results tables (qbe_validation's `results_catalog` parameter)"
     default: "nsarvi_db"
+  qbe_rules_source:
+    description: "Where qbe_validation reads the rules from: yaml (config/tables) or table (synced by qbe_sync_rules)"
+    default: "yaml"
 
 targets:
   # The 'dev' target, for development purposes. This target is the default.
@@ -37,6 +40,7 @@ targets:
     variables:
       qbe_source_catalog: "expertsierra_dev"   # stand-in Raw tables; dsi_dev once the QBE tables are in this workspace
       qbe_results_catalog: "nsarvi_db"
+      qbe_rules_source: "yaml"
       
   ## Optionally, there could be a 'staging' target here.
   ## (See Databricks docs on CI/CD at https://docs.databricks.com/dev-tools/bundles/ci-cd.html.)

@@ -104,3 +104,32 @@ def test_dq_table_files_are_well_formed(tables_dir):
                 for value in rule["check"].get("arguments", {}).get("allowed", []):
                     if isinstance(value, str):
                         assert value.startswith("'") and value.endswith("'"), f"{rule_id}: quote text values in allowed, e.g. \"'{value}'\""
+
+
+def _load_qbe_rules_module(monkeypatch):
+    import importlib
+
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "use_cases" / "qbe" / "src"))
+    return importlib.import_module("com.qbe.de.rules")
+
+
+def test_qbe_rules_round_trip_through_rules_table_rows(monkeypatch):
+    """The rules read back from rules table rows match the YAML files they were synced from."""
+    qbe_rules = _load_qbe_rules_module(monkeypatch)
+    from_yaml = qbe_rules.read_yaml_tables(REPO_ROOT / "use_cases" / "qbe" / "config" / "tables")
+
+    rows = qbe_rules.to_rule_rows(from_yaml)
+    schema_columns = [field.split()[0] for field in qbe_rules.RULES_SCHEMA.split(", ")]
+    assert all(list(row) == schema_columns for row in rows), "rows must have the RULES_SCHEMA columns, in order"
+
+    def rules_by_id(table_configs):
+        return {
+            rule["rule_id"]: (table["table"], table.get("record_columns"), column, rule["check"],
+                              rule.get("target_threshold"), rule.get("filter"), rule.get("enabled", True))
+            for table in table_configs
+            for column, rules in [(c, cfg.get("rules") or []) for c, cfg in table["columns"].items()]
+                                 + [(None, table.get("table_rules") or [])]
+            for rule in rules
+        }
+
+    assert rules_by_id(qbe_rules.from_rule_rows(rows)) == rules_by_id(from_yaml)

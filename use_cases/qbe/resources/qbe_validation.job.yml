@@ -1,10 +1,10 @@
-# Job for the QBE data quality rules (use_cases/qbe/qbe_validation.ipynb). No schedule: run it with
+# Job for the QBE data quality rules (use_cases/qbe/notebooks/qbe_validation.ipynb). No schedule: run it with
 #   databricks bundle run qbe_validation_job --target <target> --profile <profile>
 #
 # The job parameters reach the notebook as widgets of the same name. Their values come from the bundle variables
-# qbe_source_catalog / qbe_results_catalog (set per target in databricks.yml, or with --var at deploy time), and
-# can be overridden for a single run in the UI or with:
-#   databricks bundle run qbe_validation_job --params source_catalog=<catalog>,results_catalog=<catalog>
+# qbe_source_catalog / qbe_results_catalog / qbe_rules_source (set per target in databricks.yml, or with --var at
+# deploy time), and can be overridden for a single run in the UI or with:
+#   databricks bundle run qbe_validation_job --params source_catalog=<catalog>,rules_source=table
 resources:
   jobs:
     qbe_validation_job:
@@ -15,6 +15,8 @@ resources:
           default: ${var.qbe_source_catalog}
         - name: results_catalog
           default: ${var.qbe_results_catalog}
+        - name: rules_source
+          default: ${var.qbe_rules_source}
 
       email_notifications:
         on_failure:
@@ -24,7 +26,7 @@ resources:
         - task_key: qbe_validation
           job_cluster_key: qbe_cluster
           notebook_task:
-            notebook_path: ../qbe_validation.ipynb
+            notebook_path: ../notebooks/qbe_validation.ipynb
 
       job_clusters:
         - job_cluster_key: qbe_cluster
