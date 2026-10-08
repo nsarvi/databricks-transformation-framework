@@ -104,6 +104,16 @@ def test_dq_table_files_are_well_formed(tables_dir):
                 for value in rule["check"].get("arguments", {}).get("allowed", []):
                     if isinstance(value, str):
                         assert value.startswith("'") and value.endswith("'"), f"{rule_id}: quote text values in allowed, e.g. \"'{value}'\""
+        # for_each_column runs a table rule's check on each listed column; a column file's rules are on its column
+        for column in table["columns"]:
+            for rule in column.get("rules") or []:
+                assert "for_each_column" not in rule["check"], f"{rule['rule_id']}: for_each_column goes in table_rules"
+        for rule in table.get("table_rules") or []:
+            for_each_column = rule["check"].get("for_each_column")
+            if for_each_column is not None:
+                assert isinstance(for_each_column, list) and for_each_column and all(
+                    isinstance(column, str) and column for column in for_each_column
+                ), f"{rule['rule_id']}: for_each_column must list column names"
 
 
 def _load_qbe_rules_module(monkeypatch):
@@ -111,6 +121,17 @@ def _load_qbe_rules_module(monkeypatch):
 
     monkeypatch.syspath_prepend(str(REPO_ROOT / "use_cases" / "qbe" / "src"))
     return importlib.import_module("com.qbe.de.rules")
+
+
+def _rules_by_id(table_configs: list) -> dict:
+    return {
+        rule["rule_id"]: (table["table"], table.get("record_columns"), column, rule["check"],
+                          rule.get("target_threshold"), rule.get("filter"), rule.get("enabled", True))
+        for table in table_configs
+        for column, rules in [(c, cfg.get("rules") or []) for c, cfg in table["columns"].items()]
+                             + [(None, table.get("table_rules") or [])]
+        for rule in rules
+    }
 
 
 def test_qbe_rules_round_trip_through_rules_table_rows(monkeypatch):
@@ -121,15 +142,22 @@ def test_qbe_rules_round_trip_through_rules_table_rows(monkeypatch):
     rows = qbe_rules.to_rule_rows(from_yaml)
     schema_columns = [field.split()[0] for field in qbe_rules.RULES_SCHEMA.split(", ")]
     assert all(list(row) == schema_columns for row in rows), "rows must have the RULES_SCHEMA columns, in order"
+    assert _rules_by_id(qbe_rules.from_rule_rows(rows)) == _rules_by_id(from_yaml)
 
-    def rules_by_id(table_configs):
-        return {
-            rule["rule_id"]: (table["table"], table.get("record_columns"), column, rule["check"],
-                              rule.get("target_threshold"), rule.get("filter"), rule.get("enabled", True))
-            for table in table_configs
-            for column, rules in [(c, cfg.get("rules") or []) for c, cfg in table["columns"].items()]
-                                 + [(None, table.get("table_rules") or [])]
-            for rule in rules
-        }
 
-    assert rules_by_id(qbe_rules.from_rule_rows(rows)) == rules_by_id(from_yaml)
+def test_qbe_for_each_column_rule_round_trips_through_rules_table_rows(monkeypatch):
+    """A table rule with check.for_each_column keeps its columns through the rules table."""
+    qbe_rules = _load_qbe_rules_module(monkeypatch)
+    table = {
+        "table": "${source_catalog}.adv_db.sat_clm_dtl", "record_columns": ["CLM_NBR"], "columns": {},
+        "table_rules": [{
+            "rule_id": "DQ-T-1", "rule_name": "Keys not blank", "target_threshold": 100, "filter": "CLM_NBR <> 'X'",
+            "check": {"function": "is_not_null_and_not_empty", "for_each_column": ["CLM_NBR", "QBE_CLM_STS_DESCR"],
+                      "arguments": {"trim_strings": True}},
+        }],
+    }
+
+    (row,) = qbe_rules.to_rule_rows([table])
+    assert row["column_name"] is None
+    assert row["check_for_each_column"] == ["CLM_NBR", "QBE_CLM_STS_DESCR"]
+    assert _rules_by_id(qbe_rules.from_rule_rows([row])) == _rules_by_id([table])

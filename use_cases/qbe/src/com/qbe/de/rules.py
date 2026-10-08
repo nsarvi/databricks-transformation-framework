@@ -2,14 +2,16 @@
 
 A table config is {"table", "record_columns", "columns": {column: {"column", "business_term", "rules"}},
 "table_rules"}; each rule has rule_id, rule_name, description, dq_dimension, criticality, thresholds, an
-optional filter, enabled, and check ({"function", "arguments"}).
+optional filter, enabled, and check ({"function", "arguments"}, and for table rules optionally
+"for_each_column": the columns DQX runs the check on, one by one).
 
 The rules table has one row per rule (RULES_SCHEMA). Table-level settings (table, record_columns) repeat on
-each of the table's rows, and the DQX check arguments are stored as JSON. ${name} placeholders are kept as
-written, so the same rows work in every environment; the validation notebook resolves them when it runs.
+each of the table's rows, the DQX check arguments are stored as JSON, and for_each_column as an array.
+${name} placeholders are kept as written, so the same rows work in every environment; the validation notebook
+resolves them when it runs.
 
-Plain Python (PyYAML only), used by use_cases/qbe/notebooks/qbe_validation.ipynb and qbe_sync_rules.ipynb, which add
-use_cases/qbe/src to sys.path.
+Plain Python (PyYAML only), used by use_cases/qbe/notebooks/qbe_validation.ipynb and qbe_sync_rules.ipynb,
+which add use_cases/qbe/src to sys.path.
 """
 import json
 from pathlib import Path
@@ -20,7 +22,7 @@ RULES_SCHEMA = (
     "table_name string, record_columns array<string>, column_name string, business_term string, "
     "rule_id string, rule_name string, description string, dq_dimension string, criticality string, "
     "minimum_threshold double, target_threshold double, filter string, check_function string, "
-    "check_arguments string, enabled boolean"
+    "check_arguments string, check_for_each_column array<string>, enabled boolean"
 )
 
 
@@ -59,6 +61,7 @@ def _rule_row(table_config: dict, column_config: dict, rule: dict) -> dict:
         "filter": rule.get("filter"),
         "check_function": rule["check"]["function"],
         "check_arguments": json.dumps(rule["check"].get("arguments") or {}),
+        "check_for_each_column": rule["check"].get("for_each_column"),
         "enabled": rule.get("enabled", True),
     }
 
@@ -92,6 +95,8 @@ def from_rule_rows(rows: list) -> list:
             "enabled": row["enabled"] is not False,
             "check": {"function": row["check_function"], "arguments": json.loads(row["check_arguments"] or "{}")},
         }
+        if row.get("check_for_each_column"):
+            rule["check"]["for_each_column"] = list(row["check_for_each_column"])
         if row["filter"]:
             rule["filter"] = row["filter"]
         if row["column_name"]:

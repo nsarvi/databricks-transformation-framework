@@ -15,5 +15,19 @@ columns:
   - sat_clm_dtl/clm_nbr.yml
   - sat_clm_dtl/qbe_clm_sts_descr.yml
 
-# Rules over several columns or the whole table (e.g. a unique composite key); none yet
+# Rules over several columns or the whole table (e.g. a unique composite key); none yet. The check names its
+# columns in its arguments, e.g. is_unique with columns: [...]. To run one check on several columns one by one,
+# list them in check.for_each_column: DQX checks each column, and a record fails the rule if any column fails
+# (one pass rate for the rule; failed records say which column). For example:
+#   - rule_id: "DQ-CLM-0099"
+#     rule_name: "Claim Keys - Not Null or Blank"
+#     description: "Claim Number and Claim Status are not null or blank"
+#     dq_dimension: "Completeness"
+#     minimum_threshold: null
+#     target_threshold: 100
+#     check:
+#       function: is_not_null_and_not_empty
+#       for_each_column: ["CLM_NBR", "QBE_CLM_STS_DESCR"]
+#       arguments:
+#         trim_strings: true
 table_rules: []

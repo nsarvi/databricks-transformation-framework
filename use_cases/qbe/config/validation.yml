@@ -19,10 +19,15 @@ validation:
   #   enabled: false   don't write this result
   #   mode:    append (keep every run's results) | overwrite (keep only the latest run's results)
   results:
-    # One row per rule per run: rows checked, rows failed, pass rate, thresholds and whether they were met
+    # One row per rule per run: rows checked, rows in scope, rows failed, pass rate, and the error if it couldn't run
     rule_summary:
       enabled: true
       table: "${results_catalog}.nsarvi_test.qbe_dq_rule_summary"
+      mode: "append"
+    # One row per rule per run: pass rate, minimum/target threshold, and threshold_status (met, below_target, ...)
+    threshold_results:
+      enabled: true
+      table: "${results_catalog}.nsarvi_test.qbe_dq_threshold_results"
       mode: "append"
     # One row per failing record per rule: rule_id, rule_name, message, and the failing record as JSON
     failed_records:
