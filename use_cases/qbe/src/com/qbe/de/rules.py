@@ -5,21 +5,27 @@ A table config is {"table", "record_columns", "columns": {column: {"column", "bu
 optional filter, enabled, and check ({"function", "arguments"}, and for table rules optionally
 "for_each_column": the columns DQX runs the check on, one by one).
 
-The rules table has one row per rule (RULES_SCHEMA). Table-level settings (table, record_columns) repeat on
-each of the table's rows, the DQX check arguments are stored as JSON, and for_each_column as an array.
+The rules table has one row per rule (RULES_SCHEMA), for several rule sets: each validation notebook's rules
+(rules.rule_set in its config: validation, clean_validation) are the rows of its rule_set, and a sync replaces only
+those. Table-level settings (table, record_columns) repeat on each of the table's rows, the DQX check arguments are
+stored as JSON, and for_each_column as an array. Where a table's data is read from isn't a rule: validation.yml's
+tables are named by `table`, and clean_validation.yml lists each table's source under `tables`.
 ${name} placeholders are kept as written, so the same rows work in every environment; the validation notebook
 resolves them when it runs.
 
-Plain Python (PyYAML only), used by use_cases/qbe/notebooks/qbe_validation.ipynb and qbe_sync_rules.ipynb,
-which add use_cases/qbe/src to sys.path.
+Plain Python (PyYAML only), used by use_cases/qbe/notebooks/qbe_validation.ipynb, clean_validation.ipynb and
+qbe_sync_rules.ipynb, which add use_cases/qbe/src to sys.path.
 """
 import json
 from pathlib import Path
 
 import yaml
 
+# The rule set of rows synced before rule_set was a column: qbe_validation's
+DEFAULT_RULE_SET = "validation"
+
 RULES_SCHEMA = (
-    "table_name string, record_columns array<string>, column_name string, business_term string, "
+    "rule_set string, table_name string, record_columns array<string>, column_name string, business_term string, "
     "rule_id string, rule_name string, description string, dq_dimension string, criticality string, "
     "minimum_threshold double, target_threshold double, filter string, check_function string, "
     "check_arguments string, check_for_each_column array<string>, enabled boolean"
@@ -44,9 +50,10 @@ def read_yaml_tables(tables_dir: Path) -> list:
     return table_configs
 
 
-def _rule_row(table_config: dict, column_config: dict, rule: dict) -> dict:
+def _rule_row(rule_set: str, table_config: dict, column_config: dict, rule: dict) -> dict:
     as_float = lambda value: float(value) if value is not None else None
     return {
+        "rule_set": rule_set,
         "table_name": table_config["table"],
         "record_columns": table_config.get("record_columns"),
         "column_name": column_config.get("column"),
@@ -66,13 +73,13 @@ def _rule_row(table_config: dict, column_config: dict, rule: dict) -> dict:
     }
 
 
-def to_rule_rows(table_configs: list) -> list:
-    """One row per rule (RULES_SCHEMA), disabled rules included; rule_ids must be unique."""
+def to_rule_rows(table_configs: list, rule_set: str = DEFAULT_RULE_SET) -> list:
+    """One row per rule (RULES_SCHEMA) of the rule set, disabled rules included; rule_ids must be unique in it."""
     rows = []
     for table_config in table_configs:
         for column_config in (table_config.get("columns") or {}).values():
-            rows += [_rule_row(table_config, column_config, rule) for rule in column_config.get("rules") or []]
-        rows += [_rule_row(table_config, {}, rule) for rule in table_config.get("table_rules") or []]
+            rows += [_rule_row(rule_set, table_config, column_config, rule) for rule in column_config.get("rules") or []]
+        rows += [_rule_row(rule_set, table_config, {}, rule) for rule in table_config.get("table_rules") or []]
     rule_ids = [row["rule_id"] for row in rows]
     duplicates = sorted({rule_id for rule_id in rule_ids if rule_ids.count(rule_id) > 1})
     if duplicates:
@@ -81,7 +88,7 @@ def to_rule_rows(table_configs: list) -> list:
 
 
 def from_rule_rows(rows: list) -> list:
-    """Table configs from rules table rows (dicts), in the shape read_yaml_tables returns."""
+    """Table configs from rules table rows (dicts) of one rule set, in the shape read_yaml_tables returns."""
     table_configs = {}
     for row in sorted(rows, key=lambda row: (row["table_name"], row["column_name"] or "", row["rule_id"])):
         table_config = table_configs.setdefault(row["table_name"], {

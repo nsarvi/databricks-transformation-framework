@@ -1,0 +1,26 @@
+column: "claimstatus"
+business_term: "Claim Status"
+rules:
+  - rule_id: "DQ-CDE004-R01"
+    rule_name: "Claim Status - Not Null"
+    description: "State (claim status code) must be populated for every claim."
+    dq_dimension: "Completeness"
+    minimum_threshold: 99
+    target_threshold: 100
+    filter: "ClaimNumber IS NOT NULL"
+    check:
+      function: is_not_null_and_not_empty
+      arguments:
+        trim_strings: true
+
+  - rule_id: "DQ-CLN-0003"
+    rule_name: "Claim Status - Validity"
+    description: "Claim Status is in the approved list of values"
+    dq_dimension: "Validity"
+    minimum_threshold: null
+    target_threshold: 100
+    check:
+      function: is_in_list
+      arguments:
+        allowed: ["'OPEN'", "'CLOSE'", "'PRECL'"]
+        case_sensitive: true

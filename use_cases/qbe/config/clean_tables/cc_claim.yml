@@ -1,0 +1,7 @@
+table: "clean.cc_claim"
+
+columns:
+  - cc_claim/claimnumber.yml
+  - cc_claim/claimstatus.yml
+
+table_rules: []

@@ -1,0 +1,35 @@
+column: "ClaimNumber"
+business_term: "Claim Number"
+rules:
+  - rule_id: "DQ-CDE001-R01"
+    rule_name: "Claim Number - Not Null"
+    description: "ClaimNumber must be populated for every claim. It is the business key used to build QBE_HASH_CLM_ID; claims without it are dropped by the pipeline."
+    dq_dimension: "Completeness"
+    minimum_threshold: 99
+    target_threshold: 100
+    check:
+      function: is_not_null
+
+  - rule_id: "DQ-CDE001-R02"
+    rule_name: "Claim Number - Not Blank"
+    description: "Where present, ClaimNumber must not be an empty or whitespace-only string."
+    dq_dimension: "Completeness"
+    minimum_threshold: 99
+    target_threshold: 100
+    check:
+      function: sql_expression
+      arguments:
+        expression: "ClaimNumber IS NULL OR trim(ClaimNumber) <> ''"
+        msg: "Column 'ClaimNumber' value is blank"
+
+  - rule_id: "DQ-CDE001-R03"
+    rule_name: "Claim Number - Valid Format"
+    description: "ClaimNumber must be 6 digits followed by one upper-case suffix letter, or a temporary number TMP + 7 digits. No spaces, lowercase or special characters."
+    dq_dimension: "Validity"
+    minimum_threshold: 99
+    target_threshold: 100
+    check:
+      function: sql_expression
+      arguments:
+        expression: "ClaimNumber IS NULL OR ClaimNumber RLIKE '^[0-9]{6}[A-Z]$' OR ClaimNumber RLIKE '^TMP[0-9]{7}$'"
+        msg: "Column 'ClaimNumber' value is not 6 digits + an upper-case letter, or TMP + 7 digits"

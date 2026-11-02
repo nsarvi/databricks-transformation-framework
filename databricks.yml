@@ -25,6 +25,15 @@ variables:
   qbe_rules_source:
     description: "Where qbe_validation reads the rules from: yaml (config/tables) or table (synced by qbe_sync_rules)"
     default: "yaml"
+  qbe_clean_root:
+    description: "Folder of the clean parquet datasets, one subfolder each (qbe_clean_validation's `clean_root` parameter)"
+    default: "file:/Workspace/Users/sarvin_ad@wilsonelser.com/data-files"   # file:/Workspace/... or /Volumes/...
+  qbe_clean_file_date:
+    description: "The date folder qbe_clean_validation reads (yyyymmdd), or * for every date"
+    default: "20260625"
+  qbe_clean_rules_source:
+    description: "Where qbe_clean_validation reads the rules from: yaml (config/clean_tables) or table (synced by qbe_clean_sync_rules)"
+    default: "yaml"
 
 targets:
   # The 'dev' target, for development purposes. This target is the default.

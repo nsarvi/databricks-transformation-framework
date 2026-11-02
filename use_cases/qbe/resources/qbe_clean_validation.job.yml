@@ -1,0 +1,43 @@
+# Job for the clean data quality rules on parquet files (use_cases/qbe/notebooks/clean_validation.ipynb). Its
+# results go to the same tables as qbe_validation_job's. No schedule: run it with
+#   databricks bundle run qbe_clean_validation_job --target <target> --profile <profile>
+#
+# The job parameters reach the notebook as widgets of the same name. Their values come from the bundle variables
+# qbe_clean_root / qbe_clean_file_date / qbe_results_catalog / qbe_clean_rules_source (set per target in
+# databricks.yml, or with --var at deploy time), and can be overridden for a single run in the UI or with:
+#   databricks bundle run qbe_clean_validation_job --params file_date=20260626,rules_source=table
+# The job fails when a dataset can't be read or a rule's columns aren't in its files, after writing the results.
+resources:
+  jobs:
+    qbe_clean_validation_job:
+      name: qbe_clean_validation
+
+      parameters:
+        - name: clean_root
+          default: ${var.qbe_clean_root}
+        - name: file_date
+          default: ${var.qbe_clean_file_date}
+        - name: results_catalog
+          default: ${var.qbe_results_catalog}
+        - name: rules_source
+          default: ${var.qbe_clean_rules_source}
+
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+
+      tasks:
+        - task_key: qbe_clean_validation
+          job_cluster_key: qbe_clean_cluster
+          notebook_task:
+            notebook_path: ../notebooks/clean_validation.ipynb
+
+      job_clusters:
+        - job_cluster_key: qbe_clean_cluster
+          new_cluster:
+            spark_version: 18.x-scala2.13
+            node_type_id: Standard_D3_v2
+            data_security_mode: SINGLE_USER     # Unity Catalog access for the Volume files and the results tables
+            autoscale:
+              min_workers: 1
+              max_workers: 4

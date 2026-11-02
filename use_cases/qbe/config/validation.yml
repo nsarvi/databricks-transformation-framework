@@ -13,7 +13,9 @@ validation:
   #   table   the rules table below; notebooks/qbe_sync_rules.ipynb syncs it from the YAML files
   rules:
     source: "${rules_source}"
-    table: "${results_catalog}.nsarvi_test.qbe_dq_rules"
+    table: "${results_catalog}.nsarvi_test.dq_rules"
+    rule_set: "validation"               # this notebook's rows of the table; clean_validation.yml's are clean_validation
+    tables_dir: "config/tables"
 
   # Results are written once per run. The schema must exist before the first run.
   #   enabled: false   don't write this result
@@ -22,17 +24,17 @@ validation:
     # One row per rule per run: rows checked, rows in scope, rows failed, pass rate, and the error if it couldn't run
     rule_summary:
       enabled: true
-      table: "${results_catalog}.nsarvi_test.qbe_dq_rule_summary"
+      table: "${results_catalog}.nsarvi_test.dq_rule_summary"
       mode: "append"
     # One row per rule per run: pass rate, minimum/target threshold, and threshold_status (met, below_target, ...)
     threshold_results:
       enabled: true
-      table: "${results_catalog}.nsarvi_test.qbe_dq_threshold_results"
+      table: "${results_catalog}.nsarvi_test.dq_threshold_results"
       mode: "append"
     # One row per failing record per rule: rule_id, rule_name, message, and the failing record as JSON
     failed_records:
       enabled: true
-      table: "${results_catalog}.nsarvi_test.qbe_dq_failed_records"
+      table: "${results_catalog}.nsarvi_test.dq_failed_records"
       mode: "append"
 
   # Fail the notebook (and its job) when an error-level rule is below its target threshold

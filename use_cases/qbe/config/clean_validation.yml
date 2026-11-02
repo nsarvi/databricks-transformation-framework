@@ -1,0 +1,36 @@
+# Clean data validation (notebooks/clean_validation.ipynb)
+validation:
+  variables:
+    clean_root: "file:/Workspace/Users/sarvin_ad@wilsonelser.com/data-files"   # file:/Workspace/... or /Volumes/...
+    file_date: "20260625"
+    results_catalog: "nsarvi_db"
+    rules_source: "yaml"
+
+  rules:
+    source: "${rules_source}"
+    table: "${results_catalog}.nsarvi_test.dq_rules"
+    rule_set: "clean_validation"
+    tables_dir: "config/clean_tables"
+
+  results:
+    rule_summary:
+      enabled: true
+      table: "${results_catalog}.nsarvi_test.dq_rule_summary"
+      mode: "append"
+    threshold_results:
+      enabled: true
+      table: "${results_catalog}.nsarvi_test.dq_threshold_results"
+      mode: "append"
+    failed_records:
+      enabled: true
+      table: "${results_catalog}.nsarvi_test.dq_failed_records"
+      mode: "append"
+
+  fail_on_threshold_breach: false
+
+  tables:
+    - name: "clean.cc_claim"
+      path: "${clean_root}/${file_date}/cc_claim/"
+      format: parquet
+      options: {pathGlobFilter: "part-*"}
+      record_columns: ["ClaimNumber", "claimstatus"]
